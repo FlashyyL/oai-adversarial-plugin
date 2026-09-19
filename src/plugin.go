@@ -12,7 +12,7 @@ import (
 
 const (
 	pluginID                   = "timezone-override"
-	pluginVersion              = "1.5.37"
+	pluginVersion              = "1.5.37-agentease.1"
 	historyLimit               = 200
 	schemaVersion              = 6
 	streamChunkHeaderInitIndex = -1
@@ -152,10 +152,8 @@ func handleMethod(method string, raw []byte) (any, error) {
 			"schema_version": schemaVersion,
 			"metadata": map[string]any{
 				"Name": "O/对抗插件", "Version": pluginVersion,
-				"Author": "Local", "ConfigFields": []any{},
-				// CPA requires a repository reference; this links to its extension SDK.
-				// This plugin's implementation is delivered as local source.
-				"GitHubRepository": "https://github.com/router-for-me/CLIProxyAPI",
+				"Author": "FlashyyL / AgentEase", "ConfigFields": visualConfigFields(),
+				"GitHubRepository": "https://github.com/AgentEase/oai-adversarial-plugin",
 			},
 			"capabilities": map[string]bool{
 				"request_interceptor":         true,

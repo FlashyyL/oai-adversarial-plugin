@@ -207,12 +207,12 @@ func TestProbeModelConsistent(t *testing.T) {
 // TestProbeRecordCarriesObservedModel verifies the audit record shape used by
 // the dashboard for the consistency display.
 func TestProbeRecordCarriesObservedModel(t *testing.T) {
-	record := probeRecord{Model: "gpt-6-astra", ObservedModel: "gpt-6-astra", Success: true, StateLength: 292}
+	record := probeRecord{Model: "gpt-6-astra", ObservedModel: "gpt-6-astra", Success: true, StateLength: 332}
 	encoded, err := json.Marshal(record)
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, key := range []string{`"observed_model":"gpt-6-astra"`, `"state_length":292`} {
+	for _, key := range []string{`"observed_model":"gpt-6-astra"`, `"state_length":332`} {
 		if !bytes.Contains(encoded, []byte(key)) {
 			t.Fatalf("record missing %s: %s", key, encoded)
 		}
@@ -223,7 +223,7 @@ func TestProbeRecordCarriesObservedModel(t *testing.T) {
 // by the dashboard when retries are exhausted.
 func TestProbeFailureShape(t *testing.T) {
 	failure := probeFailure{Model: "gpt-6-astra", Attempts: 30, Rounds: 10,
-		LastError: "state length 312 != 292 (suspected degraded)", LastLength: 312,
+		LastError: "state length 312 != 332 (suspected degraded)", LastLength: 312,
 		FailedAt: "2026-09-18T02:20:00Z", CooldownUntil: "2026-09-18T02:40:00Z"}
 	encoded, err := json.Marshal(failure)
 	if err != nil {
@@ -254,7 +254,7 @@ func TestProbePauseAndResume(t *testing.T) {
 		t.Fatal("fresh model must not be suppressed")
 	}
 	state.failures["gpt-6-astra"] = probeFailure{Model: "gpt-6-astra", Attempts: 30, Rounds: 10,
-		LastError: "state length 312 != 292 (suspected degraded)"}
+		LastError: "state length 312 != 332 (suspected degraded)"}
 	state.setModelPaused("gpt-6-astra", true)
 	if !state.probeSuppressed("gpt-6-astra") {
 		t.Fatal("paused model must be suppressed")
@@ -295,7 +295,7 @@ func TestDegradedRejectDecision(t *testing.T) {
 	if message := degradedRejectMessage("gpt-6-astra"); message != "" {
 		t.Fatalf("switch off must allow everything: %q", message)
 	}
-	probeTrack.failures["gpt-6-astra"] = probeFailure{LastError: "state length 312 != 292 (suspected degraded)"}
+	probeTrack.failures["gpt-6-astra"] = probeFailure{LastError: "state length 312 != 332 (suspected degraded)"}
 	if message := degradedRejectMessage("gpt-6-astra"); message != "" {
 		t.Fatalf("switch off must allow even degraded: %q", message)
 	}
@@ -317,12 +317,12 @@ func TestDegradedRejectDecision(t *testing.T) {
 	// Early suspicion: below the threshold passes, at the threshold rejects.
 	delete(probeTrack.failures, "gpt-6-astra")
 	probeTrack.suspects["gpt-6-astra"] = probeSuspicion{Model: "gpt-6-astra", Failures: 2,
-		LastError: "state length 312 != 292 (suspected degraded)"}
+		LastError: "state length 312 != 332 (suspected degraded)"}
 	if message := degradedRejectMessage("gpt-6-astra"); message != "" {
 		t.Fatalf("below threshold must pass: %q", message)
 	}
 	probeTrack.suspects["gpt-6-astra"] = probeSuspicion{Model: "gpt-6-astra", Failures: 3,
-		LastError: "state length 312 != 292 (suspected degraded)"}
+		LastError: "state length 312 != 332 (suspected degraded)"}
 	if message := degradedRejectMessage("gpt-6-astra"); !strings.Contains(message, "尚未达到正式判定") {
 		t.Fatalf("threshold-crossing suspicion must be rejected: %q", message)
 	}
@@ -339,7 +339,7 @@ func TestSuspectTracking(t *testing.T) {
 	if len(probeTrack.suspects) != 0 {
 		t.Fatal("rate limit must not start a suspicion")
 	}
-	probeTrack.noteProbeFailure("gpt-6-astra", probeRecord{Error: "state length 312 != 292 (suspected degraded)"}, cfg)
+	probeTrack.noteProbeFailure("gpt-6-astra", probeRecord{Error: "state length 312 != 332 (suspected degraded)"}, cfg)
 	if probeTrack.suspects["gpt-6-astra"].Failures != 1 {
 		t.Fatalf("first failure must count: %+v", probeTrack.suspects)
 	}
@@ -347,7 +347,7 @@ func TestSuspectTracking(t *testing.T) {
 	if probeTrack.suspects["gpt-6-astra"].Failures != 2 {
 		t.Fatalf("count must continue below the threshold: %+v", probeTrack.suspects)
 	}
-	probeTrack.noteProbeFailure("gpt-6-astra", probeRecord{Error: "state length 312 != 292 (suspected degraded)"}, cfg)
+	probeTrack.noteProbeFailure("gpt-6-astra", probeRecord{Error: "state length 312 != 332 (suspected degraded)"}, cfg)
 	if probeTrack.suspects["gpt-6-astra"].Failures != 3 {
 		t.Fatalf("third failure must reach the threshold: %+v", probeTrack.suspects)
 	}
@@ -404,7 +404,7 @@ func TestInterceptDegradedRejection(t *testing.T) {
 	probeTrack = &probeEngine{values: map[string]stateEntry{}, failures: map[string]probeFailure{},
 		paused: map[string]bool{}, probing: map[string]bool{}}
 	probeTrack.failures["gpt-6-astra"] = probeFailure{Model: "gpt-6-astra", Attempts: 30, Rounds: 10,
-		LastError: "state length 312 != 292 (suspected degraded)"}
+		LastError: "state length 312 != 332 (suspected degraded)"}
 	probeTrack.setRejectDegraded(true)
 	raw, _ := json.Marshal(interceptRequest{
 		RequestID: "req-reject", ToFormat: "codex", Model: "gpt-6-astra",
@@ -457,10 +457,10 @@ func TestPersistenceRoundTrip(t *testing.T) {
 	probeTrack.setRejectDegraded(false)
 	probeTrack.setModelPaused("gpt-5.6-terra", true)
 	probeTrack.storeValue("gpt-6-astra", "sample-state-0001", "probe", "direct", cfg)
-	probeTrack.noteError("state length 312 != 292 (suspected degraded)")
-	probeTrack.noteProbeFailure("gpt-6-astra", probeRecord{Error: "state length 312 != 292 (suspected degraded)"}, cfg)
+	probeTrack.noteError("state length 312 != 332 (suspected degraded)")
+	probeTrack.noteProbeFailure("gpt-6-astra", probeRecord{Error: "state length 312 != 332 (suspected degraded)"}, cfg)
 	probeTrack.failures["gpt-5.6-sol"] = probeFailure{Model: "gpt-5.6-sol", Attempts: 30, Rounds: 10,
-		LastError: "state length 312 != 292 (suspected degraded)", FailedAt: "2026-09-18T02:20:00Z"}
+		LastError: "state length 312 != 332 (suspected degraded)", FailedAt: "2026-09-18T02:20:00Z"}
 	probeTrack.appendRecord(probeRecord{Time: "2026-09-18T02:20:00Z", Model: "gpt-6-astra", Success: true})
 	history = auditState{}
 	history.record(auditRecord{RequestID: "persist-1", Model: "gpt-6-astra",
@@ -682,8 +682,8 @@ func TestSingleModelProbe(t *testing.T) {
 }
 
 // TestSeedBaselinesFromAudit restores missing baseline values from the
-// deployment seeds file and the newest healthy (292-byte, decodable) audit
-// records - the "last recorded 292-byte value as the initial baseline" rule.
+// deployment seeds file and the newest healthy (332-byte, decodable) audit
+// records - the "last recorded 332-byte value as the initial baseline" rule.
 func TestSeedBaselinesFromAudit(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("LKS_TZ_STATE_FILE", filepath.Join(dir, "state.json"))
@@ -741,7 +741,7 @@ func TestRepairTurnStateHeader(t *testing.T) {
 		t.Fatalf("degraded state must be backfilled with the baseline: %+v", headers)
 	}
 	// Model mismatch: replaced too.
-	headers = repairTurnStateHeader("gpt-5.6-sol", "", "gpt-6-astra", strings.Repeat("A", 292))
+	headers = repairTurnStateHeader("gpt-5.6-sol", "", "gpt-6-astra", strings.Repeat("A", 332))
 	if headers == nil || headers.Get(turnStateHeader) != healthy {
 		t.Fatalf("model mismatch must be backfilled: %+v", headers)
 	}
@@ -838,11 +838,11 @@ func TestActiveValueLifecycle(t *testing.T) {
 	}
 }
 
-// synthStateToken builds a Fernet-layout token (byte-exact 217-byte payload,
-// base64url 292 characters) whose embedded timestamp is the given instant, so
+// synthStateToken builds a Fernet-layout token (byte-exact 249-byte payload,
+// base64url 332 characters) whose embedded timestamp is the given instant, so
 // the validity logic can be exercised without real tokens.
 func synthStateToken(t time.Time) string {
-	raw := make([]byte, 217) // [1B version][8B ts][16B IV][160B cipher][32B HMAC]
+	raw := make([]byte, 249) // [1B version][8B ts][16B IV][192B cipher][32B HMAC]
 	raw[0] = 0x80
 	binary.BigEndian.PutUint64(raw[1:9], uint64(t.Unix()))
 	for i := 9; i < len(raw); i++ {
@@ -1042,7 +1042,7 @@ func TestPoolNeverBenched(t *testing.T) {
 	// A dozen failures: the counters grow, the rotation is untouched (the
 	// plain-exit threshold would have benched a fixed endpoint at three).
 	for i := 0; i < 12; i++ {
-		probeTrack.noteExitOutcome(poolSpec, false, "state length 312 != 292 (suspected degraded)")
+		probeTrack.noteExitOutcome(poolSpec, false, "state length 312 != 332 (suspected degraded)")
 	}
 	if got := probeTrack.availableProxies(pool, now); len(got) != 2 {
 		t.Fatalf("a rotating pool must never leave the rotation: %v", got)
@@ -1576,13 +1576,13 @@ func TestExitCircuitBreaker(t *testing.T) {
 		t.Fatalf("all exits must start usable: %v", got)
 	}
 	// Two failures below threshold: still usable.
-	probeTrack.noteExitOutcome(pool[1], false, "state length 312 != 292 (suspected degraded)")
-	probeTrack.noteExitOutcome(pool[1], false, "state length 312 != 292 (suspected degraded)")
+	probeTrack.noteExitOutcome(pool[1], false, "state length 312 != 332 (suspected degraded)")
+	probeTrack.noteExitOutcome(pool[1], false, "state length 312 != 332 (suspected degraded)")
 	if got := probeTrack.availableProxies(pool, now); len(got) != 3 {
 		t.Fatalf("below-threshold exit must stay: %v", got)
 	}
 	// Third failure: removed from rotation.
-	probeTrack.noteExitOutcome(pool[1], false, "state length 312 != 292 (suspected degraded)")
+	probeTrack.noteExitOutcome(pool[1], false, "state length 312 != 332 (suspected degraded)")
 	got := probeTrack.availableProxies(pool, now)
 	if len(got) != 2 {
 		t.Fatalf("cooled-down exit must be skipped: %v", got)
@@ -1679,7 +1679,7 @@ func TestValidityDisplay(t *testing.T) {
 	issued := time.Now().Add(-20 * time.Minute).Truncate(time.Second)
 	fresh := synthStateToken(issued)
 	if len(fresh) != probeRequiredStateLength {
-		t.Fatalf("synthetic token must be 292 characters: %d", len(fresh))
+		t.Fatalf("synthetic token must be 332 characters: %d", len(fresh))
 	}
 	probeTrack.values["gpt-6-astra"] = stateEntry{Model: "gpt-6-astra", Value: fresh,
 		ValueLength: len(fresh), Source: "probe", Valid: true}
@@ -1762,8 +1762,8 @@ turn-state-override:
   enabled: true
   models: ["gpt-6-astra"]
   value: ""
-`)); err == nil {
-		t.Fatal("empty value must be rejected")
+`)); err != nil {
+		t.Fatalf("passive business mode must allow empty static value: %v", err)
 	}
 }
 
@@ -2271,9 +2271,9 @@ func TestUncheckedRequestsIgnoreOldStateAndErrors(t *testing.T) {
 	for _, model := range []string{"gpt-5.6-luna", "gpt-5.6-terra"} {
 		e.values[model] = stateEntry{Model: model, Value: synthStateToken(time.Now()), Valid: true}
 		e.failures[model] = probeFailure{Model: model, LastError: "model mismatch"}
-		e.suspects[model] = probeSuspicion{Model: model, Failures: 100, LastError: "state length 312 != 292"}
+		e.suspects[model] = probeSuspicion{Model: model, Failures: 100, LastError: "state length 312 != 332"}
 		e.business[model] = businessDegradation{Model: model, Reason: "历史模型不一致"}
-		for _, length := range []int{0, 1, 292, 312} {
+		for _, length := range []int{0, 1, 332, 312} {
 			headers := http.Header{turnStateHeader: {strings.Repeat("x", length)}}
 			raw, _ := json.Marshal(interceptRequest{RequestID: "unchecked-" + model,
 				ToFormat: "codex", Model: model, Headers: headers, Body: []byte(`{"input":"hello"}`)})
@@ -2295,7 +2295,7 @@ func TestUncheckedResponseHooks(t *testing.T) {
 	e := newPrefetchTestEngine(t)
 	history = auditState{}
 	for _, model := range []string{"gpt-5.6-luna", "gpt-5.6-terra"} {
-		for _, state := range []string{"", "short", strings.Repeat("x", 292), strings.Repeat("x", 312)} {
+		for _, state := range []string{"", "short", strings.Repeat("x", 332), strings.Repeat("x", 312)} {
 			id := "unchecked-response-" + model
 			history.record(auditRecord{RequestID: id, Model: model})
 			body := []byte(`{"type":"response.created","response":{"model":"gpt-6-astra"}}`)
@@ -2343,7 +2343,7 @@ func TestUncheckedProbeEntrypointsAndSummary(t *testing.T) {
 		}
 		e.values[model] = stateEntry{Model: model, Value: synthStateToken(time.Now().Add(-2*e.cfg.Config.TTL)), Valid: true}
 		e.failures[model] = probeFailure{Model: model, LastError: "model mismatch"}
-		e.suspects[model] = probeSuspicion{Model: model, Failures: 100, LastError: "state length 312 != 292"}
+		e.suspects[model] = probeSuspicion{Model: model, Failures: 100, LastError: "state length 312 != 332"}
 		e.business[model] = businessDegradation{Model: model, Reason: "旧标记"}
 		if e.probeModelAsync(model) || e.enqueueTask(model, false) {
 			t.Fatal("unchecked models must not enter the probe queue")

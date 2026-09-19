@@ -24,7 +24,7 @@ import (
 // and captures a fresh X-Codex-Turn-State through the rotating egress pool.
 // Round attempts skip models whose current baseline is still comfortably
 // valid - one healthy capture is enough until the final hand-off window.
-// Accepted captures (model-consistent, 292 bytes) replace the model's healthy
+// Accepted captures (model-consistent, 332 bytes) replace the model's healthy
 // baseline, which the rewrite engine serves to business requests. Nothing is
 // scheduled automatically except the hand-off (prefetch) watcher at the end
 // of this file, and that watcher only acts once a value approaches expiry: no
@@ -51,7 +51,7 @@ const (
 	probeDefaultsPrefetchMinutes = 3
 	prefetchRetryWindow = 90 * time.Second
 	probeDefaultsTimeoutSeconds  = 60
-	probeRequiredStateLength     = 292
+	probeRequiredStateLength     = 332
 	probeDefaultsPrompt          = "hi"
 	probeDefaultsUpstreamURL     = "https://chatgpt.com/backend-api/codex/responses"
 	probeDefaultsCredFile        = "/root/.cli-proxy-api/your-codex-auth.json"
@@ -152,7 +152,7 @@ type probeRecord struct {
 }
 
 // probeFailure marks a model whose latest probe round exhausted all retries
-// without obtaining an acceptable (292-byte, consistent) state. CooldownUntil
+// without obtaining an acceptable (332-byte, consistent) state. CooldownUntil
 // is the end of the quiet period; new rounds are suppressed until it passes.
 type probeFailure struct {
 	Model      string `json:"model"`
@@ -1108,7 +1108,7 @@ func (e *probeEngine) degradedRejectReasonFor(model string, servingModels []stri
 		if e.promoteCandidateLocked(servingModel, e.cfg.Config, now) {
 			markStateDirty()
 		}
-		if entry, ok := e.values[servingModel]; ok && entry.Valid && len(entry.Value) == probeRequiredStateLength && !entryExpired(entry, e.cfg.Config.TTL, now) {
+		if entry, ok := e.values[servingModel]; ok && entry.Valid && isAcceptedStateLength(len(entry.Value)) && !entryExpired(entry, e.cfg.Config.TTL, now) {
 			return ""
 		}
 	}
@@ -1243,7 +1243,7 @@ func (e *probeEngine) clearBusinessDegradation(model string) {
 // observeBusinessState feeds one state value observed on real business
 // traffic into the engine:
 //
-//   - healthy (length 292, model consistent) -> stored as the active value
+//   - healthy (length 332, model consistent) -> stored as the active value
 //     with source "business" (zero upstream pressure), marks cleared;
 //   - unhealthy (length anomaly, or state empty + model mismatch) -> one
 //     observation is enough to mark the model degraded for the rejection
@@ -1262,7 +1262,7 @@ func observeBusinessState(model, state, observedModel string) {
 		}
 		return
 	}
-	if len(state) != probeRequiredStateLength {
+	if !isAcceptedStateLength(len(state)) {
 		probeTrack.noteBusinessDegradation(model, fmt.Sprintf("业务请求观测到状态长度异常（%d 字节）", len(state)))
 		return
 	}
@@ -1730,10 +1730,10 @@ func (e *probeEngine) probeOnce(model, proxySpec string, cfg probeConfig) (probe
 		e.noteError(record.Error)
 		return record, ""
 	}
-	// Length acceptance: only the pristine 292-byte state is valid. Other
+	// Length acceptance: only the pristine 332-byte state is valid. Other
 	// lengths (for example 312) are treated as risk-controlled degraded
 	// states and rejected, so the probe keeps retrying.
-	if len(state) != probeRequiredStateLength {
+	if !isAcceptedStateLength(len(state)) {
 		record.Error = fmt.Sprintf("state length %d != %d (suspected degraded)", len(state), probeRequiredStateLength)
 		record.ObservedModel = observedModel
 		record.StateLength = len(state)
@@ -1896,7 +1896,7 @@ func (e *probeEngine) activeValueFor(model string) string {
 // seedBaselinesFromAudit restores missing baseline entries from recorded
 // history: first the deployment seeds file (last known-good values extracted
 // from server records by the open-source-prep scanner), then the newest
-// healthy (292-byte, decodable) turn-state values in the audit journal. A
+// healthy (332-byte, decodable) turn-state values in the audit journal. A
 // fresh plugin instance therefore keeps protecting traffic with the last
 // known-good states before any business observation or manual probe refreshes
 // them, and nothing is drafted into the baseline unless it passes the same
@@ -1918,7 +1918,7 @@ func (e *probeEngine) seedBaselinesFromAudit() {
 			for model, value := range seeds {
 				model = strings.TrimSpace(model)
 				value = strings.TrimSpace(value)
-				if model == "" || len(value) != probeRequiredStateLength {
+				if model == "" || !isAcceptedStateLength(len(value)) {
 					continue
 				}
 				if ts, ok := parseTurnStateTimestamp(value); ok {
@@ -1933,7 +1933,7 @@ func (e *probeEngine) seedBaselinesFromAudit() {
 		if model == "" {
 			model = strings.TrimSpace(record.RequestedModel)
 		}
-		if model == "" || record.TurnStateLength != probeRequiredStateLength || record.TurnStateValue == "" {
+		if model == "" || !isAcceptedStateLength(record.TurnStateLength) || record.TurnStateValue == "" {
 			continue
 		}
 		ts, ok := parseTurnStateTimestamp(record.TurnStateValue)

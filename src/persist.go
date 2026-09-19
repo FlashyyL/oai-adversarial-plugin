@@ -89,7 +89,7 @@ func ensurePersistence() {
 		loadPersistedState()
 		loadRuntimeSettings()
 		// After the snapshot is restored, fill any entry that has no value yet
-		// from the newest healthy (292-byte) turn-state values in the audit
+		// from the newest healthy (332-byte) turn-state values in the audit
 		// journal, so the baseline table is never empty after a fresh start.
 		probeTrack.seedBaselinesFromAudit()
 		go persistLoop(persistStop)

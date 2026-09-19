@@ -80,6 +80,12 @@ func configureTurnStateOverride(configYAML []byte) error {
 	}
 	trimmed := bytes.TrimSpace(configYAML)
 	if len(trimmed) > 0 {
+		normalized, err := normalizePanelConfig(trimmed)
+		if err != nil {
+			turnStateOverride.Store(&turnStateOverrideState{Error: err.Error()})
+			return err
+		}
+		trimmed = normalized
 		if err := yaml.Unmarshal(trimmed, &root); err != nil {
 			state = &turnStateOverrideState{Error: fmt.Sprintf("decode turn-state-override config: %v", err)}
 			turnStateOverride.Store(state)
@@ -101,14 +107,10 @@ func configureTurnStateOverride(configYAML []byte) error {
 			state = &turnStateOverrideState{Config: config, Error: "turn-state-override.models must not be empty"}
 			turnStateOverride.Store(state)
 			return fmt.Errorf("turn-state-override.models must not be empty")
-		case config.Value == "" && !probeEnabled(config.Probe):
-			state = &turnStateOverrideState{Config: config, Error: "turn-state-override.value must not be empty (and probe is disabled)"}
-			turnStateOverride.Store(state)
-			return fmt.Errorf("turn-state-override.value must not be empty (and probe is disabled)")
 		}
 	}
-	// The probe track may be enabled independently of the static value; it
-	// supplies fresh per-model values when available.
+	// Empty static value is valid: passive business observations may populate
+	// the baseline even with the probe track disabled. Until then, do not inject.
 	_ = configureProbeTrack(config.Probe)
 	state = &turnStateOverrideState{Config: config}
 	turnStateOverride.Store(state)
@@ -183,7 +185,7 @@ func applyTurnStateOverride(model, requestedModel string, headers http.Header) (
 	// length) and force is off; an unhealthy one (for example a 312-byte
 	// degraded state) is always replaced, whichever the mode.
 	existing := headerValue(headers, turnStateHeader)
-	keepExisting := existing != "" && len(existing) == probeRequiredStateLength && !state.Config.Force
+	keepExisting := existing != "" && isAcceptedStateLength(len(existing)) && !state.Config.Force
 	if baseline == "" {
 		if !state.Config.Enabled || state.Config.Value == "" {
 			return nil, ""
@@ -203,7 +205,7 @@ func applyTurnStateOverride(model, requestedModel string, headers http.Header) (
 // exactly the required length and, when the upstream model is known, served by
 // a consistent model. An unknown upstream model only length-checks.
 func isHealthyTurnState(model, observedModel, state string) bool {
-	if len(state) != probeRequiredStateLength {
+	if !isAcceptedStateLength(len(state)) {
 		return false
 	}
 	if observedModel != "" && !probeModelConsistent(model, observedModel) {
@@ -218,6 +220,10 @@ func isHealthyTurnState(model, observedModel, state string) bool {
 // instead, so it is not fed back into the next request. Returns nil when no
 // repair applies (healthy value, no state, or no baseline yet), in which case
 // the response must pass through untouched.
+func isAcceptedStateLength(length int) bool {
+	return length == 292 || length == 332
+}
+
 func repairTurnStateHeader(model, requestedModel, observedModel, state string) http.Header {
 	if !degradationDetectionEnabled(model, requestedModel) {
 		return nil

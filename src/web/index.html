@@ -146,7 +146,7 @@
     " · 现有基线继续使用":[" · Existing baseline remains in use", " · 現有基線繼續使用", " · Текущий эталон остаётся в работе"],
     "0 继承全局：单代理 3 次，聚合池 100 次，以实际配置为准":["0 inherits the global setting: usually 3 for single proxies and 100 for pools.", "0 繼承全域：單一代理 3 次，聚合池 100 次，以實際設定為準", "0 — наследовать общую настройку: обычно 3 для прокси и 100 для пула."],
     "1–3600 秒，设置重试与跨模型探测的等待时间。下一次等待起生效，重启后保留。":["1–3600 seconds between retries and models. Applies from the next wait and persists after restart.", "1–3600 秒，設定重試與跨模型探測的等待時間。下次等待起生效，重新啟動後保留。", "1–3600 секунд между повторами и моделями. Действует со следующего ожидания и сохраняется после перезапуска."],
-    "292 字节：长度符合预期":["292 bytes: expected length", "292 位元組：長度符合預期", "292 байта: ожидаемая длина"],
+    "292/332 字节：长度符合预期":["292/332 bytes: expected length", "292/332 位元組：長度符合預期", "292/332 байта: ожидаемая длина"],
     "CPA 登录已失效，请返回管理页重新登录。":["Your CPA session has expired. Sign in again on the management page.", "CPA 登入已失效，請返回管理頁重新登入。", "Сеанс CPA истёк. Войдите снова на странице управления."],
     "O/对抗插件":["O/Adversarial Plugin", "O/對抗外掛", "O/Adversarial Plugin"],
     "O/对抗插件 · CPA":["O/Adversarial Plugin · CPA", "O/對抗外掛 · CPA", "O/Adversarial Plugin · CPA"],
@@ -329,7 +329,7 @@
     "暂停":["Pause", "暫停", "Пауза"],
     "暂停该模型：取消排队与在途探测，并停止该模型的自动预备；已有健康值保留":["Pause this model: cancel queued and in-flight tasks and stop its automatic prefetch; retain healthy values", "暫停此模型：取消排隊與進行中的探測，並停止其自動預備；保留健康值", "Поставить модель на паузу: отменить очередь и текущие задачи, остановить её автоподготовку; сохранить исправные значения"],
     "暂无出口。添加代理后可在这里管理探测预算和启用状态。":["No exits yet. Add a proxy to manage its budget and availability here.", "尚無出口。新增代理後，可在這裡管理探測預算與啟用狀態。", "Выходов пока нет. Добавьте прокси, чтобы управлять его бюджетом и доступностью."],
-    "暂无基线值。可点击「开始探测」手动获取；业务流量观测到健康状态（模型一致 + 292 字节）时也会自动入库。":["No baseline yet. Start probes to obtain one. Healthy observations from business traffic (matching model and 292 bytes) are also stored.", "尚無基線值。可開始探測以取得；業務流量觀測到健康狀態（模型一致且 292 位元組）時也會自動儲存。", "Эталона пока нет. Запустите проверки. Исправные наблюдения из рабочего трафика (совпадение модели и 292 байта) также сохраняются."],
+    "暂无基线值。可点击「开始探测」手动获取；业务流量观测到健康状态（模型一致 + 292/332 字节）时也会自动入库。":["No baseline yet. Start probes to obtain one. Healthy observations from business traffic (matching model and 292/332 bytes) are also stored.", "尚無基線值。可開始探測以取得；業務流量觀測到健康狀態（模型一致且 292/332 位元組）時也會自動儲存。", "Эталона пока нет. Запустите проверки. Исправные наблюдения из рабочего трафика (совпадение модели и 292/332 байта) также сохраняются."],
     "暂无探测记录。":["No probe history yet.", "尚無探測記錄。", "История проверок пуста."],
     "替换后时区":["Target timezone", "替換後時區", "Целевой часовой пояс"],
     "最近 50 条 · 最新在前":["Latest 50 · Newest first", "最近 50 筆 · 最新在前", "Последние 50 · Новые сверху"],
@@ -416,7 +416,7 @@
     "队列 {count} 项":["Queue: {count}", "佇列 {count} 項", "В очереди: {count}"],
     "队列等待中":["Waiting in queue", "佇列等待中", "Ожидание в очереди"],
     "降智已拦截":["Degradation blocked", "降智已攔截", "Ухудшение заблокировано"],
-    "非 292 字节：长度存疑（可能为风控状态）":["Not 292 bytes: unexpected length, possibly an upstream risk-control state", "非 292 位元組：長度存疑，可能為上游風控狀態", "Не 292 байта: неожиданная длина, возможное ограничение сервера"],
+    "非 292/332 字节：长度存疑（可能为风控状态）":["Not 292/332 bytes: unexpected length, possibly an upstream risk-control state", "非 292/332 位元組：長度存疑，可能為上游風控狀態", "Не 292/332 байта: неожиданная длина, возможное ограничение сервера"],
     "面板设置":["panel setting", "面板設定", "из панели"],
     "预备就绪":["Candidate ready", "預備就緒", "Замена готова"],
     "预备探测 · 本轮 {count} 次失败":["Prefetch · {count} failures this round", "預備探測 · 本輪 {count} 次失敗", "Подготовка · {count} ошибок в раунде"],
@@ -871,9 +871,9 @@
       const lenCell=cell(tr,'');
       if(entry.value_length){
         const badge=document.createElement('span');
-        badge.className='badge '+(entry.value_length===292?'state-ok':'state-warn');
+        badge.className='badge '+([292,332].includes(entry.value_length)?'state-ok':'state-warn');
         badge.textContent=entry.value_length+' B';
-        badge.title=entry.value_length===292?t('292 字节：长度符合预期'):t('非 292 字节：长度存疑（可能为风控状态）');
+        badge.title=[292,332].includes(entry.value_length)?t('292/332 字节：长度符合预期'):t('非 292/332 字节：长度存疑（可能为风控状态）');
         lenCell.append(badge);
       }else{lenCell.textContent='—';lenCell.classList.add('none');}
       cell(tr,sourceLabel(entry.source)||'—',entry.source?'':'none');
@@ -901,7 +901,7 @@
       const remaining=Number(entry.remaining_seconds);
       const hasRemaining=entry.remaining_seconds!==undefined&&!isNaN(remaining);
       const expired=entry.expired===true||(hasRemaining&&remaining<=0)||(entry.expires_at&&new Date(entry.expires_at).getTime()<=Date.now());
-      const baselineUsable=entry.valid!==false&&entry.value_length===292&&!expired&&hasRemaining;
+      const baselineUsable=entry.valid!==false&&[292,332].includes(entry.value_length)&&!expired&&hasRemaining;
       if(activeSet.has(entry.model)){
         // Live truth wins over history: while this model is actually being
         // probed, show that instead of a stale round-failure annotation.
@@ -977,7 +977,7 @@
       control.append(probeNow);
       vfrag.append(tr);
     }
-    if(!values.length){const tr=document.createElement('tr');const td=cell(tr,t('暂无基线值。可点击「开始探测」手动获取；业务流量观测到健康状态（模型一致 + 292 字节）时也会自动入库。'),'empty');td.colSpan=7;vfrag.append(tr);}
+    if(!values.length){const tr=document.createElement('tr');const td=cell(tr,t('暂无基线值。可点击「开始探测」手动获取；业务流量观测到健康状态（模型一致 + 292/332 字节）时也会自动入库。'),'empty');td.colSpan=7;vfrag.append(tr);}
     el('probe-values').replaceChildren(vfrag);
     renderProbeHistories(probe);
   }
@@ -1019,9 +1019,9 @@
       const detail=cell(tr,'');
       if(record.success){
         const lenBadge=document.createElement('span');
-        lenBadge.className='badge '+(record.state_length===292?'state-ok':'state-warn');
+        lenBadge.className='badge '+([292,332].includes(record.state_length)?'state-ok':'state-warn');
         lenBadge.textContent=record.state_length+' B';
-        lenBadge.title=record.state_length===292?t('292 字节：长度符合预期'):t('非 292 字节：长度存疑（可能为风控状态）');
+        lenBadge.title=[292,332].includes(record.state_length)?t('292/332 字节：长度符合预期'):t('非 292/332 字节：长度存疑（可能为风控状态）');
         detail.append(lenBadge);
         if(record.observed_model){const obs=document.createElement('span');obs.className='src';obs.textContent=t('上游 {model}',{model:record.observed_model});detail.append(obs);}
       }else{detail.textContent=record.error||'—';detail.classList.add('none');}
