@@ -2316,10 +2316,30 @@ func TestUncheckedModelPolicy(t *testing.T) {
 		{"gpt-5.6-luna", "gpt-6-astra", true},
 		{"gpt-5.6-sol", "", true}, {"gpt-6-astra-luna", "", true},
 		{"gpt-5.6-lunafoo", "", true}, {"other-luna", "", true},
+		{"codex-auto-review", "", false}, {"codex-auto-review-preview", "", false},
+		{"gpt-6-astra", "codex-auto-review", false},
+		{"codex-auto-review", "gpt-6-astra", true},
 	} {
 		if got := degradationDetectionEnabled(tc.model, tc.requested); got != tc.enabled {
 			t.Errorf("policy(%q, %q)=%v; want %v", tc.model, tc.requested, got, tc.enabled)
 		}
+	}
+}
+
+func TestAutoReviewRequestsAreNotRejectedAsDegraded(t *testing.T) {
+	e := newPrefetchTestEngine(t)
+	e.rejectDegraded = true
+	e.business["codex-auto-review"] = businessDegradation{
+		Model: "codex-auto-review", Reason: "业务请求观测到状态长度异常（312 字节）",
+	}
+	raw, _ := json.Marshal(interceptRequest{
+		RequestID: "guardian-review", ToFormat: "codex", Model: "codex-auto-review",
+		Headers: http.Header{turnStateHeader: {strings.Repeat("x", 312)}},
+		Body:    []byte(`{"model":"codex-auto-review","input":"review"}`),
+	})
+	response, err := intercept(raw)
+	if err != nil || response.Terminate || response.StatusCode == http.StatusForbidden {
+		t.Fatalf("guardian auto-review must not inherit astra/sol reject: %+v %v", response, err)
 	}
 }
 

@@ -12,7 +12,7 @@ import (
 
 const (
 	pluginID                   = "timezone-override"
-	pluginVersion              = "1.5.48"
+	pluginVersion              = "1.5.49"
 	historyLimit               = 200
 	schemaVersion              = 6
 	streamChunkHeaderInitIndex = -1
@@ -108,30 +108,30 @@ type auditRecord struct {
 	Account      string `json:"account,omitempty"`
 	AccountEmail string `json:"account_email,omitempty"`
 	conversion
-	RequestID               string `json:"request_id"`
-	TraceID                 string `json:"trace_id,omitempty"`
-	Model                   string `json:"model"`
-	RequestedModel          string `json:"requested_model,omitempty"`
-	Time                    string `json:"time"`
-	UpstreamModel           string `json:"upstream_model,omitempty"`
-	ModelChecked            bool   `json:"model_checked"`
-	ModelMismatch           bool   `json:"model_mismatch"`
-	DetectionExempt         bool   `json:"detection_exempt,omitempty"`
-	TurnStateLength         int    `json:"turn_state_length"`
-	TurnStateSource         string `json:"turn_state_source,omitempty"`
-	TurnStatePreview        string `json:"turn_state_preview,omitempty"`
-	TurnStateValue          string `json:"turn_state_value,omitempty"`
-	TurnStateTruncated      bool   `json:"turn_state_truncated,omitempty"`
-	TurnStateOverride       string `json:"turn_state_override,omitempty"`
-	TurnStateInjectedLength int    `json:"turn_state_injected_length,omitempty"`
-	TurnStateOriginalLength *int   `json:"turn_state_original_length,omitempty"`
-	TurnStateResponseOriginalLength *int `json:"turn_state_response_original_length,omitempty"`
-	TurnStateResponseInjectedLength int `json:"turn_state_response_injected_length,omitempty"`
-	TurnStateResponseStatus string `json:"turn_state_response_status,omitempty"`
+	RequestID                       string `json:"request_id"`
+	TraceID                         string `json:"trace_id,omitempty"`
+	Model                           string `json:"model"`
+	RequestedModel                  string `json:"requested_model,omitempty"`
+	Time                            string `json:"time"`
+	UpstreamModel                   string `json:"upstream_model,omitempty"`
+	ModelChecked                    bool   `json:"model_checked"`
+	ModelMismatch                   bool   `json:"model_mismatch"`
+	DetectionExempt                 bool   `json:"detection_exempt,omitempty"`
+	TurnStateLength                 int    `json:"turn_state_length"`
+	TurnStateSource                 string `json:"turn_state_source,omitempty"`
+	TurnStatePreview                string `json:"turn_state_preview,omitempty"`
+	TurnStateValue                  string `json:"turn_state_value,omitempty"`
+	TurnStateTruncated              bool   `json:"turn_state_truncated,omitempty"`
+	TurnStateOverride               string `json:"turn_state_override,omitempty"`
+	TurnStateInjectedLength         int    `json:"turn_state_injected_length,omitempty"`
+	TurnStateOriginalLength         *int   `json:"turn_state_original_length,omitempty"`
+	TurnStateResponseOriginalLength *int   `json:"turn_state_response_original_length,omitempty"`
+	TurnStateResponseInjectedLength int    `json:"turn_state_response_injected_length,omitempty"`
+	TurnStateResponseStatus         string `json:"turn_state_response_status,omitempty"`
 	// In-flight evidence is never restored from snapshots or exposed by the API.
-	responseTicket string
-	responseModel string
-	DegradedRejected        bool   `json:"degraded_rejected,omitempty"`
+	responseTicket   string
+	responseModel    string
+	DegradedRejected bool `json:"degraded_rejected,omitempty"`
 }
 
 type auditState struct {
