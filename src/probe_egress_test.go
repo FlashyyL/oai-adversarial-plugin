@@ -42,6 +42,7 @@ func TestProbeAttemptUsesFreshSOCKSConnectionAndBoundAddress(t *testing.T) {
 		}
 		return
 	}
+	enablePublicEgressLookup = false
 	e := newPrefetchTestEngine(t)
 	if err := os.WriteFile(e.cfg.Config.CredFile, []byte(`{"access_token":"mock-only"}`), 0o600); err != nil {
 		t.Fatal(err)

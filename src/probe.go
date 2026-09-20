@@ -78,21 +78,21 @@ type probeConfig struct {
 	ExitCooldown          time.Duration
 	ExitFailThreshold     int
 	ExitPoolFailThreshold int
-	ExitMinActive       int
-	ExitSuccessCooldown time.Duration
-	PoolAttempts        int
-	Prefetch            time.Duration
-	SleepHours          probeSleepHours
-	SuspectThreshold    int
-	Timeout             time.Duration
-	Prompt              string
-	UpstreamURL         string
-	SecretsFile         string
-	ProxyPools          map[string]bool
-	ProxyLabels         map[string]string
-	ProxyIDs            map[string]string
-	ProxyAttempts       map[string]int
-	ProxyMultipliers    map[string]float64
+	ExitMinActive         int
+	ExitSuccessCooldown   time.Duration
+	PoolAttempts          int
+	Prefetch              time.Duration
+	SleepHours            probeSleepHours
+	SuspectThreshold      int
+	Timeout               time.Duration
+	Prompt                string
+	UpstreamURL           string
+	SecretsFile           string
+	ProxyPools            map[string]bool
+	ProxyLabels           map[string]string
+	ProxyIDs              map[string]string
+	ProxyAttempts         map[string]int
+	ProxyMultipliers      map[string]float64
 }
 
 // probeConfigYAML mirrors the YAML keys accepted under turn-state-override.probe.
@@ -145,19 +145,21 @@ type stateEntry struct {
 
 // probeRecord is one probe attempt for the audit trail.
 type probeRecord struct {
-	Time          string `json:"time"`
-	Model         string `json:"model"`
-	Proxy         string `json:"proxy"`
-	ProxyLabel    string `json:"proxy_label,omitempty"`
-	Success       bool   `json:"success"`
-	StatusCode    int    `json:"status_code,omitempty"`
-	DurationMS    int64  `json:"duration_ms"`
-	EgressAddr    string `json:"egress_addr,omitempty"`
-	StateLength   int    `json:"state_length,omitempty"`
-	ObservedModel string `json:"observed_model,omitempty"`
-	AuthLabel     string `json:"auth_label,omitempty"`
-	AuthPriority  int    `json:"auth_priority,omitempty"`
-	Error         string `json:"error,omitempty"`
+	Time           string `json:"time"`
+	Model          string `json:"model"`
+	Proxy          string `json:"proxy"`
+	ProxyLabel     string `json:"proxy_label,omitempty"`
+	Success        bool   `json:"success"`
+	StatusCode     int    `json:"status_code,omitempty"`
+	DurationMS     int64  `json:"duration_ms"`
+	EgressAddr     string `json:"egress_addr,omitempty"`
+	EgressLocation string `json:"egress_location,omitempty"`
+	EgressSource   string `json:"egress_source,omitempty"`
+	StateLength    int    `json:"state_length,omitempty"`
+	ObservedModel  string `json:"observed_model,omitempty"`
+	AuthLabel      string `json:"auth_label,omitempty"`
+	AuthPriority   int    `json:"auth_priority,omitempty"`
+	Error          string `json:"error,omitempty"`
 }
 
 // probeFailure marks a model whose latest probe round exhausted all retries
@@ -1763,7 +1765,8 @@ func (e *probeEngine) probeOnce(model, proxySpec string, cfg probeConfig) (probe
 	defer func() {
 		accountRouter.observeProbe(cred.AuthID, model, record, time.Now().UTC())
 	}()
-	transport, binder, err := buildProbeTransport(proxySpec)
+	stickySpec, pinnedSession := pinProxySession(proxySpec)
+	transport, binder, err := buildProbeTransport(stickySpec)
 	if err != nil {
 		record.DurationMS = time.Since(started).Milliseconds()
 		record.Error = fmt.Sprintf("transport: %v", err)
@@ -1809,13 +1812,22 @@ func (e *probeEngine) probeOnce(model, proxySpec string, cfg probeConfig) (probe
 	if binder != nil {
 		// The SOCKS5 handshake reports the bound address for this connection.
 		// It is not proof of the public IP seen by the upstream (e.g. NAT).
-		record.EgressAddr = binder.load()
+		if bound := binder.load(); bound != "" {
+			record.EgressAddr = bound
+			record.EgressSource = "socks_bind"
+		}
 	}
 	if err != nil {
+		// Do not pile four public lookups onto a dead or timed-out proxy.
 		record.Error = fmt.Sprintf("do: %v", err)
 		e.noteError(record.Error)
 		return record, ""
 	}
+	// Commercial SOCKS endpoints usually return 0.0.0.0 as BND.ADDR.
+	// A second request on a rotating proxy is a different exit, so the
+	// transport above pins a short sticky session when the provider
+	// supports it; the lookup then reports that same public IP.
+	applyPublicEgress(&record, client, pinnedSession)
 	defer resp.Body.Close()
 	stage = "response"
 	record.StatusCode = resp.StatusCode
@@ -2483,49 +2495,49 @@ func probeSummary() map[string]any {
 		"exit_pool_fail_threshold":      cfg.ExitPoolFailThreshold,
 		"exit_cooldown_minutes":         int(cfg.ExitCooldown / time.Minute),
 		"exit_success_cooldown_minutes": int(cfg.ExitSuccessCooldown / time.Minute),
-		"exit_min_active":       cfg.ExitMinActive,
-		"prefetch_minutes":      int(cfg.Prefetch / time.Minute),
-		"prefetch_override":     probeTrack.settings.PrefetchMinutes != nil,
-		"sleep_start_hour":      cfg.SleepHours.Start,
-		"sleep_end_hour":        cfg.SleepHours.End,
-		"sleeping":              cfg.Enabled && !cfg.SleepHours.until(poolNow).IsZero(),
-		"sleep_until":           sleepUntilText(cfg.SleepHours, poolNow),
-		"settings_error":        probeTrack.settingsError,
-		"proxy_index":  probeTrack.proxyIndex,
-		"ttl_minutes":      int(cfg.TTL / time.Minute),
-		"window_minutes":   int(cfg.Window / time.Minute),
-		"scan_seconds": int(cfg.ScanInterval / time.Second),
-		"interval_seconds": int(cfg.ProbeInterval / time.Second),
-		"interval_override": probeTrack.settings.IntervalSeconds != nil,
-		"attempts_per_proxy": cfg.AttemptsPerHop,
-		"pool_attempts": poolAttemptsFor(cfg),
-		"max_attempts_per_round": effectiveMaxAttempts(cfg, cfg.Proxies),
-		"max_attempts_explicit": cfg.MaxAttemptsPerRound > 0,
-		"cooldown_minutes": int(cfg.Cooldown / time.Minute),
-		"business":        businessMarks,
-		"suspect_threshold": cfg.SuspectThreshold,
-		"suspects":        suspects,
-		"paused":           paused,
-		"reject_degraded":  probeTrack.rejectDegraded,
-		"running":      probeTrack.running,
-		"halted":       probeTrack.halted,
-		"stopping":     probeTrack.stopping,
-		"prefetch_enabled": cfg.Enabled && cfgState.Error == "" && cfg.Prefetch > 0 && !probeTrack.halted && len(detectionModels) > 0,
-		"queue_length": len(probeTrack.queue),
-		"queue_models": queueModels(probeTrack.queue),
-		"active_models": activeModels(probeTrack.probing, probeTrack.queue),
-		"run_started_at":  probeTrack.runStartedAt,
-		"run_finished_at": probeTrack.runFinishedAt,
-		"run_note":        probeTrack.runNote,
-		"seeded":       probeTrack.seeded,
-		"probes_total": probeTrack.probesTotal,
-		"probes_ok":    probeTrack.probesOK,
-		"last_error":   redactProxyText(probeTrack.lastError),
-		"last_activity": redactProxyText(probeTrack.lastActivity),
-		"values":       values,
-		"failures":     failures,
-		"history":      history,
-		"success_history": successHistory,
+		"exit_min_active":               cfg.ExitMinActive,
+		"prefetch_minutes":              int(cfg.Prefetch / time.Minute),
+		"prefetch_override":             probeTrack.settings.PrefetchMinutes != nil,
+		"sleep_start_hour":              cfg.SleepHours.Start,
+		"sleep_end_hour":                cfg.SleepHours.End,
+		"sleeping":                      cfg.Enabled && !cfg.SleepHours.until(poolNow).IsZero(),
+		"sleep_until":                   sleepUntilText(cfg.SleepHours, poolNow),
+		"settings_error":                probeTrack.settingsError,
+		"proxy_index":                   probeTrack.proxyIndex,
+		"ttl_minutes":                   int(cfg.TTL / time.Minute),
+		"window_minutes":                int(cfg.Window / time.Minute),
+		"scan_seconds":                  int(cfg.ScanInterval / time.Second),
+		"interval_seconds":              int(cfg.ProbeInterval / time.Second),
+		"interval_override":             probeTrack.settings.IntervalSeconds != nil,
+		"attempts_per_proxy":            cfg.AttemptsPerHop,
+		"pool_attempts":                 poolAttemptsFor(cfg),
+		"max_attempts_per_round":        effectiveMaxAttempts(cfg, cfg.Proxies),
+		"max_attempts_explicit":         cfg.MaxAttemptsPerRound > 0,
+		"cooldown_minutes":              int(cfg.Cooldown / time.Minute),
+		"business":                      businessMarks,
+		"suspect_threshold":             cfg.SuspectThreshold,
+		"suspects":                      suspects,
+		"paused":                        paused,
+		"reject_degraded":               probeTrack.rejectDegraded,
+		"running":                       probeTrack.running,
+		"halted":                        probeTrack.halted,
+		"stopping":                      probeTrack.stopping,
+		"prefetch_enabled":              cfg.Enabled && cfgState.Error == "" && cfg.Prefetch > 0 && !probeTrack.halted && len(detectionModels) > 0,
+		"queue_length":                  len(probeTrack.queue),
+		"queue_models":                  queueModels(probeTrack.queue),
+		"active_models":                 activeModels(probeTrack.probing, probeTrack.queue),
+		"run_started_at":                probeTrack.runStartedAt,
+		"run_finished_at":               probeTrack.runFinishedAt,
+		"run_note":                      probeTrack.runNote,
+		"seeded":                        probeTrack.seeded,
+		"probes_total":                  probeTrack.probesTotal,
+		"probes_ok":                     probeTrack.probesOK,
+		"last_error":                    redactProxyText(probeTrack.lastError),
+		"last_activity":                 redactProxyText(probeTrack.lastActivity),
+		"values":                        values,
+		"failures":                      failures,
+		"history":                       history,
+		"success_history":               successHistory,
 	}
 	probeTrack.mu.Unlock()
 	return summary
