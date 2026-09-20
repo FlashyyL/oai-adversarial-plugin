@@ -310,9 +310,11 @@
     "显示出口 IP":["Show egress IPs", "顯示出口 IP", "Показать IP выходов"],
     "隐藏出口 IP":["Hide egress IPs", "隱藏出口 IP", "Скрыть IP выходов"],
     "出口 IP 已隐藏":["Egress IP hidden", "出口 IP 已隱藏", "IP выхода скрыт"],
-    "代理回报地址":["Proxy-reported address", "代理回報位址", "Адрес по данным прокси"],
+    "代理回报地址":["Exit IP / location", "出口 IP / 地區", "IP / регион выхода"],
     "代理回报 · 未核验":["Proxy-reported · Unverified", "代理回報 · 未核驗", "По данным прокси · Не проверен"],
+    "公网出口":["Public exit", "公網出口", "Публичный выход"],
     "未获取":["Unavailable", "未取得", "Нет данных"],
+    "本次探测经同一代理查到的公网 IP 与归属地。":["Public IP and location seen through the same proxy during this probe.", "本次探測經同一代理查到的公網 IP 與歸屬地。", "Публичный IP и регион, видимые через тот же прокси во время проверки."],
     "本次 SOCKS5 连接的代理回报地址（BND.ADDR），不保证等于上游看到的公网 IP。":["Proxy-reported address (BND.ADDR) for this SOCKS5 connection; it may differ from the public IP seen by the upstream.", "本次 SOCKS5 連線的代理回報位址（BND.ADDR），不保證等於上游看到的公網 IP。", "Адрес BND.ADDR этого SOCKS5-соединения по данным прокси; он может отличаться от публичного IP, видимого серверу."],
     "本次连接未获得可用的代理回报地址，无法判断出口是否轮换。":["No usable proxy-reported address for this connection; exit rotation cannot be determined.", "本次連線未取得可用的代理回報位址，無法判斷出口是否輪換。", "Прокси не сообщил пригодный адрес этого соединения; смену выхода определить нельзя."],
     "此连接未提供出口 IP；代理入口地址不能代表实际公网出口。":["This connection did not provide an egress IP; the proxy endpoint is not the actual public exit.", "此連線未提供出口 IP；代理入口位址不能代表實際公網出口。", "IP выхода для этого соединения недоступен; адрес входа в прокси не является фактическим публичным выходом."],
@@ -1033,8 +1035,13 @@
         address.textContent='***';address.setAttribute('aria-label',t('出口 IP 已隐藏'));
       }else if(reported){
         const ip=document.createElement('code');ip.textContent=record.egress_addr;address.append(ip);
-        const source=document.createElement('div');source.className='sub';source.textContent=t('代理回报 · 未核验');address.append(source);
-        address.title=t('本次 SOCKS5 连接的代理回报地址（BND.ADDR），不保证等于上游看到的公网 IP。');
+        if(record.egress_location){
+          const place=document.createElement('div');place.className='sub';place.textContent=record.egress_location;address.append(place);
+        }
+        const source=document.createElement('div');source.className='sub';
+        source.textContent=record.egress_source==='public'?t('公网出口'):t('代理回报 · 未核验');
+        address.append(source);
+        address.title=record.egress_source==='public'?t('本次探测经同一代理查到的公网 IP 与归属地。'):t('本次 SOCKS5 连接的代理回报地址（BND.ADDR），不保证等于上游看到的公网 IP。');
       }else{
         address.textContent=t('未获取');address.classList.add('none');
         address.title=/^socks5h?:/i.test(record.proxy||'')?t('本次连接未获得可用的代理回报地址，无法判断出口是否轮换。'):t('此连接未提供出口 IP；代理入口地址不能代表实际公网出口。');

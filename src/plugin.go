@@ -12,7 +12,7 @@ import (
 
 const (
 	pluginID                   = "timezone-override"
-	pluginVersion              = "1.5.39"
+	pluginVersion              = "1.5.40"
 	historyLimit               = 200
 	schemaVersion              = 6
 	streamChunkHeaderInitIndex = -1
@@ -413,16 +413,16 @@ func management(raw []byte) (managementResponse, error) {
 func probeControl(body []byte) (managementResponse, error) {
 	skipped := false
 	var req struct {
-		Model   string `json:"model"`
-		Proxy   string `json:"proxy"`
-		ID      string `json:"id"`
-		Action  string `json:"action"`
-		Enabled *bool  `json:"enabled"`
-		Minutes *int   `json:"minutes"`
-		Seconds *int   `json:"seconds"`
-		StartHour *int `json:"start_hour"`
-		EndHour *int   `json:"end_hour"`
-		Exit    *exitEdit `json:"exit"`
+		Model     string    `json:"model"`
+		Proxy     string    `json:"proxy"`
+		ID        string    `json:"id"`
+		Action    string    `json:"action"`
+		Enabled   *bool     `json:"enabled"`
+		Minutes   *int      `json:"minutes"`
+		Seconds   *int      `json:"seconds"`
+		StartHour *int      `json:"start_hour"`
+		EndHour   *int      `json:"end_hour"`
+		Exit      *exitEdit `json:"exit"`
 	}
 	if len(body) > 0 {
 		if err := json.Unmarshal(body, &req); err != nil {
