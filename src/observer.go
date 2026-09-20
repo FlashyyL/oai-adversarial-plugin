@@ -461,11 +461,19 @@ func degradationDetectionEnabled(model, requestedModel string) bool {
 		model = requestedModel
 	}
 	model = strings.ToLower(strings.TrimSpace(targetModel(model)))
-	if model == "luna" || model == "terra" {
+	if model == "luna" || model == "terra" || guardianReviewModel(model) {
 		return false
 	}
 	parts := strings.Split(model, "-")
 	return !(len(parts) >= 3 && parts[0] == "gpt" && (parts[2] == "luna" || parts[2] == "terra"))
+}
+
+// guardianReviewModel is Codex Auto-review: a separate read-only reviewer
+// spawned when the main agent asks to cross the sandbox boundary. It is not
+// astra/sol, is not probed, and must not inherit their 292/332 length policy.
+func guardianReviewModel(model string) bool {
+	return model == "codex-auto-review" || strings.HasPrefix(model, "codex-auto-review-") ||
+		strings.HasSuffix(model, "-auto-review")
 }
 
 func observeBusinessStateForRequest(model, requestedModel, state, upstream string) string {
