@@ -1765,7 +1765,8 @@ func (e *probeEngine) probeOnce(model, proxySpec string, cfg probeConfig) (probe
 	defer func() {
 		accountRouter.observeProbe(cred.AuthID, model, record, time.Now().UTC())
 	}()
-	transport, binder, err := buildProbeTransport(proxySpec)
+	stickySpec, pinnedSession := pinProxySession(proxySpec)
+	transport, binder, err := buildProbeTransport(stickySpec)
 	if err != nil {
 		record.DurationMS = time.Since(started).Milliseconds()
 		record.Error = fmt.Sprintf("transport: %v", err)
@@ -1816,10 +1817,11 @@ func (e *probeEngine) probeOnce(model, proxySpec string, cfg probeConfig) (probe
 			record.EgressSource = "socks_bind"
 		}
 	}
-	// 1024proxy and most commercial SOCKS endpoints return 0.0.0.0 as
-	// BND.ADDR. Ask a public echo through the same egress so the dashboard
-	// can show the real exit IP and its geolocation.
-	applyPublicEgress(&record, proxySpec, client)
+	// Commercial SOCKS endpoints usually return 0.0.0.0 as BND.ADDR.
+	// A second request on a rotating proxy is a different exit, so the
+	// transport above pins a short sticky session when the provider
+	// supports it; the lookup then reports that same public IP.
+	applyPublicEgress(&record, client, pinnedSession)
 	if err != nil {
 		record.Error = fmt.Sprintf("do: %v", err)
 		e.noteError(record.Error)

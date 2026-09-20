@@ -2,13 +2,16 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"io"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
+	"strconv"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -22,14 +25,11 @@ type publicEgress struct {
 	Location string
 }
 
-type publicEgressCacheEntry struct {
-	value publicEgress
-	until time.Time
-}
-
-var publicEgressCache sync.Map
-
-const publicEgressCacheTTL = 60 * time.Second
+// pinProxySessionTTLMinutes keeps one 1024proxy sticky IP long enough for
+// the upstream probe plus a follow-up public-IP lookup. The original
+// rotating username is left unchanged in the recorded proxy spec so the
+// pool still rotates on the next attempt.
+const pinProxySessionTTLMinutes = 3
 
 var publicEgressEndpoints = []string{
 	"https://ipwho.is/",
@@ -60,27 +60,45 @@ var countryNameZH = map[string]string{
 	"US": "美国",
 }
 
-func cachedPublicEgress(proxySpec string, client *http.Client) publicEgress {
-	if !enablePublicEgressLookup || client == nil || os.Getenv("CPA_EGRESS_LOG_CHILD") == "1" {
-		return publicEgress{}
+// pinProxySession rewrites a rotating 1024proxy username into a short-lived
+// sticky session so the probe request and the IP lookup share one exit.
+// Other providers and already-sticky usernames are left unchanged.
+func pinProxySession(spec string) (string, bool) {
+	spec = strings.TrimSpace(spec)
+	if spec == "" || strings.EqualFold(spec, "direct") {
+		return spec, false
 	}
-	if item, ok := publicEgressCache.Load(proxySpec); ok {
-		cached := item.(publicEgressCacheEntry)
-		if time.Now().Before(cached.until) {
-			return cached.value
-		}
+	parsed, err := url.Parse(spec)
+	if err != nil || parsed.User == nil {
+		return spec, false
 	}
-	found := lookupPublicEgress(client)
-	if found.IP != "" {
-		publicEgressCache.Store(proxySpec, publicEgressCacheEntry{
-			value: found,
-			until: time.Now().Add(publicEgressCacheTTL),
-		})
+	if !strings.Contains(strings.ToLower(parsed.Hostname()), "1024proxy.") {
+		return spec, false
 	}
-	return found
+	user := parsed.User.Username()
+	if user == "" {
+		return spec, false
+	}
+	if strings.Contains(user, "-sid-") {
+		return spec, true
+	}
+	pass, _ := parsed.User.Password()
+	parsed.User = url.UserPassword(user+"-sid-"+randomSessionID()+"-t-"+strconv.Itoa(pinProxySessionTTLMinutes), pass)
+	return parsed.String(), true
+}
+
+func randomSessionID() string {
+	var raw [6]byte
+	if _, err := rand.Read(raw[:]); err != nil {
+		return hex.EncodeToString([]byte(strconv.FormatInt(time.Now().UnixNano(), 16)))
+	}
+	return hex.EncodeToString(raw[:])
 }
 
 func lookupPublicEgress(client *http.Client) publicEgress {
+	if !enablePublicEgressLookup || client == nil || os.Getenv("CPA_EGRESS_LOG_CHILD") == "1" {
+		return publicEgress{}
+	}
 	for _, rawURL := range publicEgressEndpoints {
 		body, ok := fetchThrough(client, 3*time.Second, rawURL)
 		if !ok {
@@ -188,12 +206,16 @@ func formatEgressLocation(parts ...string) string {
 	return strings.Join(out, " · ")
 }
 
-func applyPublicEgress(record *probeRecord, proxySpec string, client *http.Client) {
-	found := cachedPublicEgress(proxySpec, client)
+func applyPublicEgress(record *probeRecord, client *http.Client, pinned bool) {
+	found := lookupPublicEgress(client)
 	if found.IP == "" {
 		return
 	}
 	record.EgressAddr = found.IP
 	record.EgressLocation = found.Location
-	record.EgressSource = "public"
+	if pinned {
+		record.EgressSource = "public"
+	} else {
+		record.EgressSource = "public_sample"
+	}
 }
