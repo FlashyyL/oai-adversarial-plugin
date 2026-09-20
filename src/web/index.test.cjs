@@ -502,6 +502,30 @@ test('history panels preserve independent open states through refresh and all lo
 });
 
 
+test('public egress history shows IP, location, source label and tooltip',()=>{
+  const p=panel();
+  p.get('probe-ip-toggle').events.click();
+  const records=[
+    {proxy:'socks5h://192.0.2.1:1080',proxy_label:'美国',egress_addr:'203.0.113.44',egress_location:'Ashburn · Virginia · 美国',egress_source:'public',success:true},
+    {proxy:'socks5h://192.0.2.1:1080',egress_addr:'198.51.100.20',egress_source:'public_sample',success:true}
+  ];
+  p.renderData({records:[],turn_state_override:{probe:fixture({history:records,success_history:records})}});
+  for(const id of ['probe-history','probe-success-history']){
+    const rows=p.get(id).children;
+    assert.match(rows[0].children[3].textContent,/203\.0\.113\.44/);
+    assert.match(rows[0].children[3].textContent,/Ashburn · Virginia · 美国/);
+    assert.match(rows[0].children[3].textContent,/公网出口/);
+    assert.match(rows[0].children[3].title,/短会话钉住同一出口/);
+    assert.match(rows[1].children[3].textContent,/198\.51\.100\.20/);
+    assert.match(rows[1].children[3].textContent,/同代理抽样/);
+    assert.match(rows[1].children[3].title,/不一定等于本次探测/);
+  }
+  p.changeLanguage('en');
+  const cell=p.get('probe-history').children[0].children[3];
+  assert.match(cell.textContent,/Public exit/);
+  assert.match(cell.title,/same sticky exit/);
+});
+
 test('both histories show connection-reported IPs and explicitly disclose unavailable exits',()=>{
   const p=panel();
   p.get('probe-ip-toggle').events.click();

@@ -1817,16 +1817,17 @@ func (e *probeEngine) probeOnce(model, proxySpec string, cfg probeConfig) (probe
 			record.EgressSource = "socks_bind"
 		}
 	}
+	if err != nil {
+		// Do not pile four public lookups onto a dead or timed-out proxy.
+		record.Error = fmt.Sprintf("do: %v", err)
+		e.noteError(record.Error)
+		return record, ""
+	}
 	// Commercial SOCKS endpoints usually return 0.0.0.0 as BND.ADDR.
 	// A second request on a rotating proxy is a different exit, so the
 	// transport above pins a short sticky session when the provider
 	// supports it; the lookup then reports that same public IP.
 	applyPublicEgress(&record, client, pinnedSession)
-	if err != nil {
-		record.Error = fmt.Sprintf("do: %v", err)
-		e.noteError(record.Error)
-		return record, ""
-	}
 	defer resp.Body.Close()
 	stage = "response"
 	record.StatusCode = resp.StatusCode
