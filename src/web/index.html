@@ -85,6 +85,15 @@
       <div class="card"><div class="label"><span data-i18n="探测成功 / 总探测">探测成功 / 总探测</span></div><div class="number" id="probe-counts">—</div></div>
       <div class="card"><div class="label"><span data-i18n="最近探测活动">最近探测活动</span></div><div class="number" id="probe-activity">—</div></div>
     </section>
+    <details class="panel probe-records" id="account-routing-panel" open>
+      <summary class="toolbar"><h2 class="section-heading"><svg class="section-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 6h16M4 12h10M4 18h7"/><path d="m15 15 3 3 4-5"/></svg><span data-i18n="实验性账号健康路由">实验性账号健康路由</span></h2><span class="probe-note" id="account-routing-note" data-i18n="只读监测">只读监测</span></summary>
+      <div class="table-wrap" tabindex="0" role="region" aria-label="账号与模型健康状态，可横向滚动" data-i18n-aria-label="账号与模型健康状态，可横向滚动"><table>
+        <caption id="account-routing-count"></caption>
+        <thead><tr><th data-i18n="账号标识">账号标识</th><th data-i18n="模型族">模型族</th><th data-i18n="健康状态">健康状态</th><th data-i18n="状态长度">状态长度</th><th data-i18n="账号票据剩余">账号票据剩余</th><th data-i18n="最近观测（UTC+8）">最近观测（UTC+8）</th><th data-i18n="冷却 / 原因">冷却 / 原因</th></tr></thead>
+        <tbody id="account-routing-rows"></tbody>
+      </table></div>
+      <div class="footer"><span data-i18n="仅展示脱敏账号标识及探测、业务观测结果，不展示凭据。">仅展示脱敏账号标识及探测、业务观测结果，不展示凭据。</span><span data-i18n="同优先级内路由 · 全部冷却时回退 CPA 原调度">同优先级内路由 · 全部冷却时回退 CPA 原调度</span></div>
+    </details>
     <section class="panel">
       <div class="toolbar"><h2 class="section-heading"><svg class="section-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m12 3 8 3v6c0 5-8 9-8 9s-8-4-8-9V6l8-3Z"/><path d="m8 12 3 3 5-6"/></svg><span><span data-i18n="模型健康状态">模型健康状态</span></span></h2><div class="actions"><button id="round-start" type="button" class="primary" title="启用自动预备并开始一轮探测：跳过健康值仍充裕或已备好接班值的模型；所有任务串行执行" data-i18n-title="启用自动预备并开始一轮探测：跳过健康值仍充裕或已备好接班值的模型；所有任务串行执行"><span data-i18n="开始探测">开始探测</span></button><button id="round-stop" type="button" title="取消本轮排队和在途探测，在下一个尝试边界生效；保持自动预备原状态，临近到期时仍可再次探测" data-i18n-title="取消本轮排队和在途探测，在下一个尝试边界生效；保持自动预备原状态，临近到期时仍可再次探测"><span data-i18n="停止当前轮">停止当前轮</span></button><button id="all-stop" type="button" title="取消所有探测并停止自动预备；重启后保持停止，直到再次点击开始探测；已获得的健康值保留" data-i18n-title="取消所有探测并停止自动预备；重启后保持停止，直到再次点击开始探测；已获得的健康值保留"><span data-i18n="停止全部">停止全部</span></button><span id="probe-times" class="probe-note">—</span></div></div>
       <details class="probe-settings" id="probe-settings">
@@ -145,6 +154,53 @@
 <script>
   // UI message -> [English, Traditional Chinese, Russian]. Simplified Chinese is the key.
   const messages={
+    "仅展示脱敏账号标识及探测、业务观测结果，不展示凭据。":["Shows masked account IDs and observations only, never credentials.","僅顯示去識別化帳號與觀測結果，不顯示憑據。","Только обезличенные аккаунты и результаты наблюдений, без учётных данных."],
+    "同优先级内路由 · 全部冷却时回退 CPA 原调度":["Routing within priority · CPA fallback when all accounts cool down","同優先級內路由 · 全部冷卻時回退 CPA 原排程","Маршрутизация в рамках приоритета · При охлаждении всех аккаунтов используется CPA"],
+    "{accounts} 个账号 · {records} 条模型记录":["{accounts} accounts · {records} model records","{accounts} 個帳號 · {records} 條模型記錄","Аккаунтов: {accounts} · Записей моделей: {records}"],
+    "实验性账号健康路由":["Experimental account health routing","實驗性帳號健康路由","Экспериментальная маршрутизация аккаунтов"],
+    "只读监测":["Read-only monitoring","唯讀監測","Мониторинг без изменений"],
+    "账号与模型健康状态，可横向滚动":["Account and model health, horizontally scrollable","帳號與模型健康狀態，可橫向捲動","Состояние аккаунтов и моделей, горизонтальная прокрутка"],
+    "账号标识":["Account ID","帳號識別碼","Идентификатор аккаунта"],
+    "模型族":["Model family","模型族","Семейство моделей"],
+    "健康状态":["Health status","健康狀態","Состояние"],
+    "账号票据剩余":["Account state remaining","帳號票據剩餘","Оставшийся срок состояния"],
+    "最近观测（UTC+8）":["Last observed (UTC+8)","最近觀測（UTC+8）","Последнее наблюдение (UTC+8)"],
+    "冷却 / 原因":["Cooldown / reason","冷卻 / 原因","Ожидание / причина"],
+    "会话守卫关闭":["Session guard off","工作階段守衛關閉","Защита сессии выключена"],
+    "会话守卫观测":["Session guard observing","工作階段守衛觀測","Наблюдение за сессиями"],
+    "会话守卫执行":["Session guard enforcing","工作階段守衛執行","Защита сессии включена"],
+    "异账号 {count}（替换 {replaced} / 剥离 {stripped}）":["Foreign states {count} (replaced {replaced} / stripped {stripped})","異帳號 {count}（替換 {replaced} / 移除 {stripped}）","Чужие состояния: {count} (заменено {replaced} / удалено {stripped})"],
+    "配置错误：{error}":["Configuration error: {error}","設定錯誤：{error}","Ошибка конфигурации: {error}"],
+    "路由已开启 · State 与 TTL 按账号隔离":["Routing enabled · account-scoped state and TTL","路由已開啟 · State 與 TTL 依帳號隔離","Маршрутизация включена · состояние и TTL по аккаунтам"],
+    "只读监测 · 路由未开启":["Read-only monitoring · routing disabled","唯讀監測 · 路由未開啟","Мониторинг · маршрутизация выключена"],
+    "最近 {kind}":["Latest {kind}","最近 {kind}","Последнее: {kind}"],
+    "账号 {account}":["Account {account}","帳號 {account}","Аккаунт {account}"],
+    "来源 {owner}":["Owner {owner}","來源 {owner}","Владелец {owner}"],
+    "指纹 {fingerprint}":["Fingerprint {fingerprint}","指紋 {fingerprint}","Отпечаток {fingerprint}"],
+    "铸造账号 {owner}":["Issuing account {owner}","簽發帳號 {owner}","Выдавший аккаунт {owner}"],
+    "健康":["Healthy","健康","Исправен"],
+    "票据到期 · 待重探":["State expired · awaiting probe","票據到期 · 待重探","Срок истёк · ожидается проверка"],
+    "待重新探测":["Awaiting another probe","待重新探測","Ожидается повторная проверка"],
+    "续期已尝试 · 可手动重探":["Renewal attempted · manual retry available","續期已嘗試 · 可手動重探","Продление выполнено · можно повторить вручную"],
+    "业务异常":["Business anomaly","業務異常","Аномалия рабочего запроса"],
+    "鉴权失败":["Authentication failed","驗證失敗","Ошибка авторизации"],
+    "额度已用完":["Quota exhausted","額度已用完","Квота исчерпана"],
+    "请求限流":["Rate limited","請求限流","Ограничение частоты запросов"],
+    "账号暂不可用":["Account temporarily unavailable","帳號暫不可用","Аккаунт временно недоступен"],
+    "无法读取当前账号清单，历史状态暂不展示。":["Current account inventory unavailable; historical states are hidden.","無法讀取目前帳號清單，暫不顯示歷史狀態。","Текущий список аккаунтов недоступен; история скрыта."],
+    "暂无已启用账号的健康记录。":["No health records for enabled accounts.","暫無已啟用帳號的健康記錄。","Нет записей состояния включённых аккаунтов."],
+    "瞬时失败":["Transient failure","暫時失敗","Временный сбой"],
+    "待观察":["Awaiting observation","待觀察","Ожидается наблюдение"],
+    "冷却 {duration}":["Cooldown {duration}","冷卻 {duration}","Ожидание {duration}"],
+    "探测记录：{reason}":["Probe evidence: {reason}","探測記錄：{reason}","Результат проверки: {reason}"],
+    "尚无账号级使用记录。完成一次 Codex 请求后，这里会按脱敏 AuthID 展示健康证据。":["No account usage yet. Completed Codex requests appear here with masked account IDs.","尚無帳號使用記錄。完成 Codex 請求後會顯示去識別化帳號的健康證據。","Записей пока нет. Завершённые запросы Codex появятся с обезличенными ID аккаунтов."],
+    "账号票据":["Account state","帳號票據","Состояние аккаунта"],
+    "异账号已替换":["Foreign state replaced","異帳號已替換","Чужое состояние заменено"],
+    "异账号已剥离":["Foreign state stripped","異帳號已移除","Чужое состояние удалено"],
+    "同账号来源":["Same-account source","同帳號來源","Источник этого аккаунта"],
+    "异账号来源":["Other-account source","異帳號來源","Источник другого аккаунта"],
+    "异模型来源":["Other-model source","異模型來源","Источник другой модели"],
+    "来源未知":["Unknown source","來源未知","Источник неизвестен"],
     "请求未携带票据，未覆写":["No request ticket; not overwritten", "請求未攜帶票據，未覆寫", "В запросе нет билета; без перезаписи"],
     "请求设置":["Request settings", "請求設定", "Настройки запросов"],
     "{ready}/{count} 账号可用":["{ready}/{count} accounts ready", "{ready}/{count} 帳號可用", "Доступно аккаунтов: {ready}/{count}"],
@@ -719,7 +775,10 @@
       cell(tr,original.length?original.join('、'):t('无'),original.length?'':'none');
       const target=cell(tr,'');const code=document.createElement('code');code.textContent=record.target;target.append(code);
       const action=cell(tr,'');
-      if(record.degraded_rejected){const badge=document.createElement('span');badge.className='badge probe-fail';badge.textContent=t('降智已拦截');badge.title=t('请求因模型疑似风控降智被插件拦截（HTTP 403）');action.append(badge);}
+      const rejectionLabels={quota_exhausted:'额度已用完',rate_limited:'请求限流',account_auth_error:'鉴权失败',account_temporarily_unavailable:'账号暂不可用'};
+      const availability=record.quota_status||record.rejection_kind;
+      if(rejectionLabels[availability]){const badge=document.createElement('span');badge.className='badge state-warn';badge.textContent=t(rejectionLabels[availability]);action.append(badge);}
+      else if(record.degraded_rejected){const badge=document.createElement('span');badge.className='badge probe-fail';badge.textContent=t('降智已拦截');badge.title=t('请求因模型疑似风控降智被插件拦截（HTTP 403）');action.append(badge);}
       else{const badge=document.createElement('span');badge.className='badge '+record.action;badge.textContent=t(labels[record.action]||record.action);action.append(badge);}
       const turnstate=cell(tr,'','turnstate');
       if(record.degraded_rejected){turnstate.textContent=t('未发往上游');turnstate.classList.add('none');}
@@ -752,6 +811,15 @@
         const response=document.createElement('div');response.className='sub';response.textContent=t('响应：{value}',{value});turnstate.append(response);
       }
       if(record.turn_state_override==='account-unavailable'||record.turn_state_override==='account-baseline-unavailable'){const notice=document.createElement('span');notice.className='badge state-warn';notice.textContent=t(record.turn_state_override==='account-unavailable'?'未注入：账号未识别':'未注入：此账号无有效票据');turnstate.append(notice);}
+      if(['session-foreign-replaced','session-foreign-stripped'].includes(record.turn_state_override)){const badge=document.createElement('span');badge.className='badge state-warn';badge.textContent=t(record.turn_state_override==='session-foreign-replaced'?'异账号已替换':'异账号已剥离');turnstate.append(badge);}
+      if(record.turn_state_provenance){
+        const provenance=document.createElement('span');
+        const labels={'same-account':'同账号来源','foreign-account':'异账号来源','foreign-model':'异模型来源','unknown':'来源未知'};
+        provenance.className='badge '+(record.turn_state_provenance==='same-account'?'state-ok':'state-warn');
+        provenance.textContent=t(labels[record.turn_state_provenance]||record.turn_state_provenance);
+        provenance.title=t('指纹 {fingerprint}',{fingerprint:record.turn_state_fingerprint||'—'});
+        turnstate.append(provenance);
+      }
       if(record.trace_id) tr.title='Trace ID: '+record.trace_id;
       fragment.append(tr);
     }
@@ -759,9 +827,55 @@
     el('rows').replaceChildren(fragment);el('auth-notice').classList.add('hidden');el('results').classList.remove('hidden');
     renderProbe(override.probe);
     renderPool(override.probe);
+    renderAccountRouting(data.account_routing||{},override.session_guard||{});
     setMessage('refresh-note',()=>t('每 5 秒刷新'));setMessage('status',()=>t('已复用 CPA 登录 · 插件 v{version}',{version:data.version}));
   }
-
+  function renderAccountRouting(routing,guard){
+    routing=routing||{};
+    guard=guard||{};
+    const accounts=Array.isArray(routing.accounts)?routing.accounts:[];
+    const groups=new Map();
+    for(const item of accounts){const key=item.account||'—';if(!groups.has(key))groups.set(key,[]);groups.get(key).push(item);}
+    el('account-routing-count').textContent=t('{accounts} 个账号 · {records} 条模型记录',{accounts:groups.size,records:accounts.length});
+    const enabled=routing.enabled===true&&!routing.error;
+    const note=el('account-routing-note');
+    const guardModes={off:'会话守卫关闭',observe:'会话守卫观测',enforce:'会话守卫执行'};
+    const guardText=t(guardModes[guard.mode]||'会话守卫观测');
+    const guardCounts=guard.enabled?(' · '+t('异账号 {count}（替换 {replaced} / 剥离 {stripped}）',{count:Number(guard.foreign_observed||0),replaced:Number(guard.foreign_replaced||0),stripped:Number(guard.foreign_stripped||0)})):'';
+    note.textContent=(routing.error?t('配置错误：{error}',{error:routing.error}):t(enabled?'路由已开启 · State 与 TTL 按账号隔离':'只读监测 · 路由未开启'))+' · '+guardText+guardCounts;
+    note.title='';
+    if(guard.last_decision){const last=guard.last_decision;note.title=[t('最近 {kind}',{kind:last.kind||'—'}),last.account?t('账号 {account}',{account:last.account}):'',last.owner?t('来源 {owner}',{owner:last.owner}):'',last.fingerprint?t('指纹 {fingerprint}',{fingerprint:last.fingerprint}):''].filter(Boolean).join(' · ');}
+    note.className='probe-note'+(routing.error?' settings-error':'');
+    if(routing.inventory_available===false){note.textContent=t('无法读取当前账号清单，历史状态暂不展示。');note.className='probe-note settings-error';}
+    const frag=document.createDocumentFragment();
+    for(const [account,items] of groups){
+    for(const [index,item] of items.entries()){
+      const tr=document.createElement('tr');
+      if(index===0){const identity=cell(tr,account,'model');identity.setAttribute('rowspan',String(items.length));identity.style.verticalAlign='top';}
+      cell(tr,item.model||'—');
+      const state=cell(tr,'','ttl-cell');
+      const badge=document.createElement('span');
+      const healthy=item.state==='healthy';
+      badge.className='badge '+(healthy?'state-ok':['expired','probe_pending','quota_exhausted','rate_limited',''].includes(item.state||'')?'state-warn':'state-fail');
+      const labels={healthy:'健康',expired:'票据到期 · 待重探',probe_pending:'待重新探测',quota_exhausted:'额度已用完',rate_limited:'请求限流',degraded:'业务异常',auth_error:'鉴权失败',transient_failure:'瞬时失败'};
+      badge.textContent=t(item.renewal_attempted&&['expired','probe_pending'].includes(item.state)?'续期已尝试 · 可手动重探':labels[item.state]||'待观察');state.append(badge);
+      cell(tr,item.last_state_length?String(item.last_state_length)+' B':'—',item.last_state_length?'':'none');
+      cell(tr,item.healthy_until?remainingText(item.healthy_until):'—',item.healthy_until?'time':'none');
+      cell(tr,item.observed_at?fmtBeijing(item.observed_at):'—','time');
+      const detail=cell(tr,'','ttl-cell');
+      const until=item.cooldown_until?new Date(item.cooldown_until).getTime():0;
+      if(until>Date.now()){
+        const seconds=Math.max(0,Math.floor((until-Date.now())/1000));
+        const cooling=document.createElement('span');cooling.className='badge state-warn';cooling.textContent=t('冷却 {duration}',{duration:fmtDuration(seconds)});detail.append(cooling);
+      }
+      const reason=document.createElement('div');reason.className='sub';reason.textContent=item.last_reason||'—';detail.append(reason);
+      if(item.probe_reason){const hint=document.createElement('div');hint.className='sub';hint.textContent=t('探测记录：{reason}',{reason:item.probe_reason});detail.append(hint);}
+      frag.append(tr);
+    }
+    }
+    if(!accounts.length){const tr=document.createElement('tr');const empty=routing.inventory_available===false?'无法读取当前账号清单，历史状态暂不展示。':routing.inventory_available===true?'暂无已启用账号的健康记录。':'尚无账号级使用记录。完成一次 Codex 请求后，这里会按脱敏 AuthID 展示健康证据。';const td=cell(tr,t(empty),'empty');td.colSpan=7;frag.append(tr);}
+    el('account-routing-rows').replaceChildren(frag);
+  }
   function renderPool(probe){
     probe=probe||{};
     const items=probe.proxies_state||[];

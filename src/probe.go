@@ -65,6 +65,7 @@ type probeConfig struct {
 	Models                []string
 	CredFile              string
 	AccountMode           string
+	TargetAuthID          string // Per-task renewal target; never a global fixed account.
 	CandidateLimit        int
 	Proxies               []string
 	TTL                   time.Duration
@@ -143,25 +144,27 @@ type stateEntry struct {
 
 // probeRecord is one probe attempt for the audit trail.
 type probeRecord struct {
-	Account       string `json:"account,omitempty"`
-	AccountEmail  string `json:"account_email,omitempty"`
-	Time          string `json:"time"`
-	Model         string `json:"model"`
-	Proxy         string `json:"proxy"`
-	ProxyLabel    string `json:"proxy_label,omitempty"`
-	Success       bool   `json:"success"`
-	StatusCode    int    `json:"status_code,omitempty"`
-	DurationMS    int64  `json:"duration_ms"`
-	EgressAddr    string `json:"egress_addr,omitempty"`
-	StateLength   int    `json:"state_length,omitempty"`
-	ObservedModel string `json:"observed_model,omitempty"`
-	AuthLabel     string `json:"auth_label,omitempty"`
-	AuthPriority  int    `json:"auth_priority,omitempty"`
-	Error         string `json:"error,omitempty"`
+	Account       string    `json:"account,omitempty"`
+	AccountEmail  string    `json:"account_email,omitempty"`
+	ReasonCode    string    `json:"reason_code,omitempty"`
+	RetryAt       time.Time `json:"retry_at,omitempty"`
+	Time          string    `json:"time"`
+	Model         string    `json:"model"`
+	Proxy         string    `json:"proxy"`
+	ProxyLabel    string    `json:"proxy_label,omitempty"`
+	Success       bool      `json:"success"`
+	StatusCode    int       `json:"status_code,omitempty"`
+	DurationMS    int64     `json:"duration_ms"`
+	EgressAddr    string    `json:"egress_addr,omitempty"`
+	StateLength   int       `json:"state_length,omitempty"`
+	ObservedModel string    `json:"observed_model,omitempty"`
+	AuthLabel     string    `json:"auth_label,omitempty"`
+	AuthPriority  int       `json:"auth_priority,omitempty"`
+	Error         string    `json:"error,omitempty"`
 }
 
 // probeFailure marks a model whose latest probe round exhausted all retries
-// without obtaining an acceptable (configured length, consistent) state. CooldownUntil
+// without obtaining an acceptable (292/332-byte, consistent) state. CooldownUntil
 // is the end of the quiet period; new rounds are suppressed until it passes.
 type probeFailure struct {
 	Model         string `json:"model"`
@@ -212,6 +215,8 @@ type exitPenalty struct {
 }
 
 type probeEngine struct {
+	activeTask        *probeTask
+	authCooldowns     map[string]time.Time
 	accounts          map[string]hostAuthEntry
 	accountError      string
 	mu                sync.Mutex
@@ -479,12 +484,8 @@ func configureProbeTrack(block probeConfigYAML) error {
 		}
 	}
 	probeTrack.mu.Unlock()
-	// The probe track never auto-starts. The dashboard's manual control is
-	// the only way to run full rounds; the prefetch watcher below is the one
-	// narrow automatic exception: while a model's active token is still
-	// comfortably far from expiry nothing happens at all, and only inside the
-	// final hand-off window (prefetch-minutes) does the watcher attempt one
-	// probe to park a successor token for a seamless takeover.
+	// Configuration does not enqueue a full manual round. The watcher handles
+	// bounded account-expiry renewal and optional early-prefetch independently.
 	ensurePersistence()
 	probeTrack.syncProbeAccounts()
 	probeTrack.ensurePrefetchWatcher()
@@ -505,9 +506,11 @@ func currentProbeConfig() probeConfigState {
 // one-off operator refresh (bypasses the settled-baseline gate and survives
 // a halted engine).
 type probeTask struct {
-	Model    string
-	Force    bool
-	Progress *probeProgress
+	TargetAuthID string
+	Generation   string
+	Model        string
+	Force        bool
+	Progress     *probeProgress
 }
 
 // A yielded task keeps its round budget; resuming never starts a fresh round.
@@ -641,7 +644,46 @@ func (e *probeEngine) enqueueTask(model string, force bool) bool {
 	return e.enqueueTaskLocked(model, force)
 }
 
+// Renew only the selected account, once per 90 seconds, on demand. Respect
+// manual stop/pause and disabled probing; never switch the global probe account.
+func (e *probeEngine) renewAccount(authID, model string, now time.Time) bool {
+	if strings.TrimSpace(authID) == "" {
+		return false
+	}
+	generation := ""
+	for _, entry := range accountRouter.renewalCandidates(now) {
+		if entry.AuthID == authID && entry.Model == routingModelKey(model) {
+			generation = renewalGeneration(entry)
+			break
+		}
+	}
+	if generation == "" {
+		return false
+	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if (e.cfg.Config.AccountMode != "highest-priority" && e.cfg.Config.AccountMode != "all-accounts") || e.halted || !e.cfg.Config.SleepHours.until(now).IsZero() {
+		return false
+	}
+	key := "account-renewal:" + accountHealthKey(authID, routingModelKey(model))
+	if gate := e.prefetchGate[key]; !gate.IsZero() && now.Sub(gate) < prefetchRetryWindow {
+		return false
+	}
+	if !e.enqueueTargetTaskLocked(model, false, authID, generation) {
+		return false
+	}
+	if e.prefetchGate == nil {
+		e.prefetchGate = map[string]time.Time{}
+	}
+	e.prefetchGate[key] = now
+	return true
+}
+
 func (e *probeEngine) enqueueTaskLocked(model string, force bool) bool {
+	return e.enqueueTargetTaskLocked(model, force, "", "")
+}
+
+func (e *probeEngine) enqueueTargetTaskLocked(model string, force bool, target, generation string) bool {
 	model = strings.TrimSpace(model)
 	if model == "" || !degradationDetectionEnabled(model, "") || !e.cfg.Config.Enabled || e.cfg.Error != "" || e.stopping || e.shuttingDown || e.targetPausedLocked(model) || (!force && e.halted) {
 		return false
@@ -650,14 +692,17 @@ func (e *probeEngine) enqueueTaskLocked(model string, force bool) bool {
 		e.queue = []probeTask{}
 	}
 	for _, task := range e.queue {
-		if task.Model == model {
+		if task.Model == model && task.TargetAuthID == target {
 			return false
 		}
 	}
-	if e.probing[model] {
+	if e.activeTask != nil && e.activeTask.Model == model && e.activeTask.TargetAuthID == target {
 		return false
 	}
-	e.insertTaskLocked(probeTask{Model: model, Force: force}, false)
+	if target == "" && e.activeTask == nil && e.probing[model] {
+		return false
+	}
+	e.insertTaskLocked(probeTask{Model: model, Force: force, TargetAuthID: target, Generation: generation}, false)
 	active := e.queueActive
 	if !active {
 		e.queueActive = true
@@ -739,7 +784,12 @@ func (e *probeEngine) queueLoop() {
 		}
 		task := e.queue[0]
 		e.queue = e.queue[1:]
+		e.activeTask = &task
 		cfg := e.cfg.Config
+		if task.TargetAuthID != "" {
+			cfg.TargetAuthID = task.TargetAuthID
+			cfg.MaxAttemptsPerRound = 1
+		}
 		brake := e.abortCh
 		if brake == nil {
 			e.abortCh = make(chan struct{})
@@ -752,13 +802,22 @@ func (e *probeEngine) queueLoop() {
 		// waiting (model paused, baseline replenished, engine halted). A
 		// one-off refresh (Force) survives both gates - it is an explicit
 		// command - but still respects an operator pause.
+		cancelled := false
 		intervalWaited := false
-		if cfg.Enabled && !paused && (task.Force || !halted) &&
-			(task.Force || !e.settledBaseline(task.Model, cfg, time.Now().UTC())) {
+		select {
+		case <-brake:
+			cancelled = true
+		default:
+		}
+		if !cancelled && cfg.Enabled && !paused && (task.Force || !halted) &&
+			(task.Force || task.TargetAuthID != "" || !e.settledBaseline(task.Model, cfg, time.Now().UTC())) {
 			// Capture cancellation before dequeue: a stop between dequeue and
 			// probeModel must not be lost by reading a fresh brake channel.
 			intervalWaited = e.runProbeTask(task, cfg, brake)
 		}
+		e.mu.Lock()
+		e.activeTask = nil
+		e.mu.Unlock()
 		// The queue interval: the pacing between two tasks (and, inside a
 		// task, between retries). Interrupted by the global brake.
 		if !intervalWaited {
@@ -909,11 +968,8 @@ func (e *probeEngine) setModelPaused(model string, paused bool) bool {
 // ---------------------------------------------------------------------------
 // prefetch watch (smooth hand-off)
 
-// ensurePrefetchWatcher starts the single background watcher once per process.
-// It is the first of the two automatic behaviours in this engine and the only
-// one that replenishes tokens: a model whose baseline is still comfortably
-// valid is never touched, and only the final hand-off window
-// (prefetch-minutes) triggers one successor capture.
+// ensurePrefetchWatcher starts account-expiry and early-prefetch scanning.
+// Expiry is independent of the early-prefetch window but respects operator stops.
 func (e *probeEngine) ensurePrefetchWatcher() {
 	e.mu.Lock()
 	if e.prefetchStop != nil {
@@ -952,7 +1008,48 @@ func (e *probeEngine) prefetchWatchLoop(stop <-chan struct{}) {
 		case <-stop:
 			return
 		case <-ticker.C:
+			e.expiryScan(time.Now().UTC())
 			e.prefetchScan()
+		}
+	}
+}
+
+// Scan account leases even when the early-prefetch window is zero. The
+// configured model allowlist, account eligibility and operator stops still apply.
+func (e *probeEngine) expiryScan(now time.Time) {
+	e.mu.Lock()
+	cfg := e.cfg.Config
+	suppressed := !cfg.Enabled || e.cfg.Error != "" || (cfg.AccountMode != "highest-priority" && cfg.AccountMode != "all-accounts") || e.halted || e.stopping || e.shuttingDown || !cfg.SleepHours.until(now).IsZero()
+	e.mu.Unlock()
+	if suppressed {
+		return
+	}
+	entries := accountRouter.renewalCandidates(now)
+	if len(entries) == 0 {
+		return
+	}
+	auths, err := hostAuthListFunc()
+	if err != nil {
+		return
+	}
+	eligible := map[string]bool{}
+	for _, auth := range e.eligibleProbeAccounts(auths, now) {
+		eligible[auth.ID] = true
+	}
+	for _, entry := range entries {
+		if !eligible[entry.AuthID] {
+			continue
+		}
+		for _, model := range cfg.Models {
+			if routingModelKey(model) != entry.Model {
+				continue
+			}
+			e.mu.Lock()
+			if (e.cfg.Config.AccountMode == "highest-priority" || e.cfg.Config.AccountMode == "all-accounts") && e.cfg.Config.SleepHours.until(time.Now()).IsZero() {
+				e.enqueueTargetTaskLocked(model, false, entry.AuthID, renewalGeneration(entry))
+			}
+			e.mu.Unlock()
+			break
 		}
 	}
 }
@@ -977,6 +1074,9 @@ func (e *probeEngine) prefetchScan() {
 		return
 	}
 	now := time.Now().UTC()
+	accountRouter.mu.Lock()
+	accountScoped := accountRouter.config.Config.Enabled && accountRouter.config.Error == ""
+	accountRouter.mu.Unlock()
 	for _, model := range targets {
 		if !degradationDetectionEnabled(model, "") {
 			continue
@@ -1013,6 +1113,12 @@ func (e *probeEngine) prefetchScan() {
 			continue
 		}
 		remaining := issued.Add(cfg.TTL).Sub(now)
+		if remaining <= 0 && accountScoped && (cfg.AccountMode == "highest-priority" || cfg.AccountMode == "all-accounts") {
+			// Account-expiry scanning owns expired leases; do not repeatedly
+			// retry them through the model-global prefetch path as well.
+			e.mu.Unlock()
+			continue
+		}
 		if remaining > cfg.Prefetch {
 			// The model still holds a baseline whose validity is comfortably
 			// beyond the hand-off window: there is nothing to replenish, one
@@ -1203,6 +1309,9 @@ func (e *probeEngine) degradedRejectReason(model string) string {
 }
 
 func (e *probeEngine) degradedRejectReasonFor(model string, servingModels []string) string {
+	// A failed renewal is diagnostic, not business-confirmed degradation.
+	// Resolve outside the engine lock to avoid nesting routing/engine locks.
+	renewalOnly := e.scopedLeaseAwaitingRenewal(model)
 	requestedModel := ""
 	if len(servingModels) > 1 {
 		requestedModel = servingModels[1]
@@ -1239,6 +1348,9 @@ func (e *probeEngine) degradedRejectReasonFor(model string, servingModels []stri
 		if entry, ok := e.values[servingModel]; ok && stateEntryAccepted(entry) && !entryExpired(entry, e.cfg.Config.TTL, now) {
 			return ""
 		}
+	}
+	if renewalOnly {
+		return ""
 	}
 	for key, failure := range e.failures {
 		if !degradationDetectionEnabled(key, "") || !sameTargetModel(candidate, key) {
@@ -1608,9 +1720,36 @@ func (e *probeEngine) runProbeTask(task probeTask, cfg probeConfig, stop <-chan 
 	if !degradationDetectionEnabled(model, "") {
 		return
 	}
+	targetAuthID := cfg.TargetAuthID
+	if targetAuthID != "" {
+		// Renewals are queued by AuthID, but their results must enter the same
+		// credential-bound slots as ordinary scoped probes and business traffic.
+		cred, err := e.resolveProbeCredential(cfg)
+		if err != nil {
+			e.noteError("renewal credential unavailable; no probe sent")
+			return
+		}
+		scope := credentialScope(cred.AuthID, cred.AccessToken, cred.AccountID)
+		e.mu.Lock()
+		bound := e.bindAccountLocked(cred.AuthID, scope)
+		if bound {
+			if e.accounts == nil {
+				e.accounts = map[string]hostAuthEntry{}
+			}
+			e.accounts[scope] = hostAuthEntry{ID: cred.AuthID, AuthIndex: cred.AuthIndex, Scope: scope, Provider: "codex"}
+		}
+		e.mu.Unlock()
+		if !bound {
+			return
+		}
+		model = scopedTarget(scope, model)
+	}
 	e.mu.Lock()
 	if e.baseCfg != nil {
 		cfg = e.cfg.Config
+	}
+	if targetAuthID != "" {
+		cfg.TargetAuthID, cfg.MaxAttemptsPerRound = targetAuthID, 1
 	}
 	if e.probing == nil {
 		e.probing = map[string]bool{}
@@ -1680,6 +1819,9 @@ func (e *probeEngine) runProbeTask(task probeTask, cfg probeConfig, stop <-chan 
 		pausedMidRound := e.targetPausedLocked(model)
 		if revision != e.configRevision {
 			cfg = e.cfg.Config
+			if targetAuthID != "" {
+				cfg.TargetAuthID, cfg.MaxAttemptsPerRound = targetAuthID, 1
+			}
 			revision = e.configRevision
 			proxies = append([]string(nil), cfg.Proxies...)
 			maxAttempts = effectiveMaxAttempts(cfg, proxies)
@@ -1725,6 +1867,15 @@ func (e *probeEngine) runProbeTask(task probeTask, cfg probeConfig, stop <-chan 
 		attempts++
 		e.mu.Unlock()
 		intervalWaited = false
+		if targetAuthID != "" {
+			if (cfg.AccountMode != "highest-priority" && cfg.AccountMode != "all-accounts") || !accountRouter.claimRenewal(targetAuthID, targetModel(model), task.Generation, time.Now().UTC()) {
+				return
+			}
+			if savePersistedState() != nil {
+				e.noteError("renewal state persistence failed; no probe sent")
+				return
+			}
+		}
 		record, value := e.probeOnce(model, proxySpec, cfg)
 		e.appendRecord(record)
 		if record.Account != "" && strings.HasPrefix(record.Error, "read cred:") {
@@ -1809,11 +1960,12 @@ func (e *probeEngine) probeOnce(model, proxySpec string, cfg probeConfig) (probe
 		e.noteError(record.Error)
 		return record, ""
 	}
-	stage = "transport"
 	record.AuthLabel = cred.Label
+	stage = "transport"
 	record.AuthPriority = cred.Priority
+	capturedState := ""
 	defer func() {
-		accountRouter.observeProbe(cred.AuthID, model, record, time.Now().UTC())
+		accountRouter.observeProbe(cred.AuthID, model, record, capturedState, time.Now().UTC())
 	}()
 	transport, binder, err := buildProbeTransport(proxySpec)
 	if err != nil {
@@ -1874,6 +2026,10 @@ func (e *probeEngine) probeOnce(model, proxySpec string, cfg probeConfig) (probe
 	if resp.StatusCode != http.StatusOK {
 		// Read a bounded snippet for diagnostics.
 		snippet, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
+		record.ReasonCode = quotaFailure(resp.StatusCode, string(snippet))
+		if record.ReasonCode != "" {
+			record.RetryAt = quotaRetryAt(record.ReasonCode, resp.Header, string(snippet), time.Now().UTC())
+		}
 		record.Error = fmt.Sprintf("status %d: %s", resp.StatusCode, strings.TrimSpace(string(snippet)))
 		e.noteError(record.Error)
 		return record, ""
@@ -1931,6 +2087,7 @@ func (e *probeEngine) probeOnce(model, proxySpec string, cfg probeConfig) (probe
 	record.Success = true
 	record.StateLength = len(state)
 	record.ObservedModel = observedModel
+	capturedState = state
 	e.mu.Lock()
 	e.probesTotal++
 	e.probesOK++

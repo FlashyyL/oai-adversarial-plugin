@@ -1735,6 +1735,10 @@ turn-state-override:
 	if summary["enabled"] != true || summary["force"] != true || summary["value_length"] != 8 {
 		t.Fatalf("summary wrong: %+v", summary)
 	}
+	guard := summary["session_guard"].(map[string]any)
+	if guard["mode"] != sessionGuardModeObserve || guard["ttl_minutes"] != 60 {
+		t.Fatalf("session guard defaults wrong: %+v", guard)
+	}
 	models := summary["models"].([]string)
 	if len(models) != 2 || models[0] != "gpt-6-astra" || models[1] != "gpt-6-luna" {
 		t.Fatalf("models not trimmed: %+v", models)
@@ -1749,6 +1753,16 @@ turn-state-override:
 	}
 	if summary := turnStateOverrideSummary(); summary["error"] == "" {
 		t.Fatalf("config error must be surfaced: %+v", summary)
+	}
+	if err := configureTurnStateOverride([]byte(`turn-state-override:
+  session-guard-mode: invalid
+`)); err == nil {
+		t.Fatal("invalid session guard mode must be rejected")
+	}
+	if err := configureTurnStateOverride([]byte(`turn-state-override:
+  session-provenance-ttl-minutes: 1441
+`)); err == nil {
+		t.Fatal("invalid session provenance TTL must be rejected")
 	}
 
 	if err := configureTurnStateOverride([]byte(`turn-state-override:

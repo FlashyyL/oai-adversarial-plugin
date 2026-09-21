@@ -74,7 +74,13 @@ func TestUsageTransportAndRateLimitDoNotPenalizeAccount(t *testing.T) {
 		m.observe(r, now.Add(time.Second))
 		m.observe(r, now.Add(2*time.Second))
 		e := m.health[accountHealthKey("test-account", "astra")]
-		if e.State != "healthy" || e.ConsecutiveFailures != 0 || !e.HealthyAt.Equal(now) {
+		if tc.status == 429 {
+			if e.State != "rate_limited" || e.ConsecutiveFailures != 0 || !e.HealthyAt.Equal(now) || !e.CooldownUntil.After(now) {
+				t.Fatal("429 must temporarily leave candidates without degradation or TTL renewal")
+			}
+			continue
+		}
+		if e.State != "healthy" || e.ConsecutiveFailures != 0 || !e.CooldownUntil.IsZero() || !e.HealthyAt.Equal(now) {
 			t.Fatalf("transport/rate limit polluted health for status %d", tc.status)
 		}
 	}

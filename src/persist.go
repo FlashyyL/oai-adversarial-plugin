@@ -17,6 +17,7 @@ package main
 
 import (
 	"encoding/json"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -138,7 +139,7 @@ func flushStateNow() {
 // may be milliseconds apart, which is fine for a dashboard snapshot.
 func collectState() persistedState {
 	state := persistedState{
-		StateVersion: 2,
+		StateVersion: 4,
 		SavedAt:      time.Now().UTC().Format(time.RFC3339Nano),
 	}
 	probeTrack.mu.Lock()
@@ -205,37 +206,37 @@ func collectState() persistedState {
 
 // savePersistedState writes the snapshot atomically. Best effort: failures
 // only surface on the dashboard status line, never break traffic.
-func savePersistedState() {
+func savePersistedState() error {
+	persistWriteMu.Lock()
+	defer persistWriteMu.Unlock()
 	state := collectState()
 	payload, err := json.Marshal(&state)
 	if err != nil {
-		return
+		return err
 	}
-	persistWriteMu.Lock()
-	defer persistWriteMu.Unlock()
 	path := stateFilePath()
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, persistDirMode); err != nil {
-		return
+		return err
 	}
 	temporary := path + ".tmp"
 	file, err := os.OpenFile(temporary, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, persistFileMode)
 	if err != nil {
-		return
+		return err
 	}
 	if _, err := file.Write(payload); err != nil {
 		file.Close()
 		os.Remove(temporary)
-		return
+		return err
 	}
 	if err := file.Sync(); err != nil {
 		file.Close()
 		os.Remove(temporary)
-		return
+		return err
 	}
 	if err := file.Close(); err != nil {
 		os.Remove(temporary)
-		return
+		return err
 	}
 	// Keep the previous snapshot as a fallback copy before replacing it.
 	if _, err := os.Stat(path); err == nil {
@@ -243,8 +244,9 @@ func savePersistedState() {
 	}
 	if err := os.Rename(temporary, path); err != nil {
 		os.Remove(temporary)
-		return
+		return err
 	}
+	return nil
 }
 
 // loadPersistedState restores the previous snapshot into the live state.
@@ -408,9 +410,12 @@ func applyPersistedState(state persistedState) {
 	}
 	history.mu.Unlock()
 
-	// Restore only fresh positive evidence. Legacy account cooldown fields are
-	// ignored and cannot prevent probes or alter host account availability.
+	// Account routing evidence is restored using each AuthID+model entry's own
+	// TTL. A refresh captured for one account must never extend another
+	// account, and legacy snapshots without an account-owned state cannot be
+	// treated as healthy.
 	now := time.Now().UTC()
+	ttl := currentProbeConfig().Config.TTL
 	accountRouter.mu.Lock()
 	if accountRouter.health == nil {
 		accountRouter.health = map[string]accountModelHealth{}
@@ -419,12 +424,40 @@ func applyPersistedState(state persistedState) {
 		if strings.TrimSpace(entry.AuthID) == "" || routingModelKey(entry.Model) == "" {
 			continue
 		}
+		entry.Model = routingModelKey(entry.Model)
+		// Reject unbounded legacy cooldowns; configured routing cooldowns are
+		// capped at one day and must never restore years-long account blocks.
+		if !isQuotaState(entry.State) && entry.CooldownUntil.After(now.Add(24*time.Hour)) {
+			continue
+		}
+		// Older usage classification tested state length before HTTP 429 and
+		// retained stale status codes. This evidence is ambiguous, not healthy:
+		// release its hard rejection and require one bounded recheck.
+		if state.StateVersion < 4 && entry.State == "degraded" && entry.LastStatusCode == http.StatusTooManyRequests && strings.HasPrefix(entry.LastReason, "state_length_") {
+			entry.ProbeReason = entry.LastReason
+			entry.State = "probe_pending"
+			entry.LastReason = "legacy_quota_evidence_needs_recheck"
+			entry.TurnStateValue = ""
+			entry.CooldownUntil = time.Time{}
+			entry.RenewalAttemptedFor = ""
+		}
+		expireAccountHealth(&entry, now)
 		if entry.State == "healthy" {
-			if !entry.healthyAt(now) {
+			if entry.TurnStateValue == "" || !isAcceptedStateLength(len(entry.TurnStateValue)) {
 				continue
 			}
-		} else {
-			continue
+			if entry.HealthyUntil.IsZero() {
+				entry.HealthyUntil = accountStateExpiry(entry.TurnStateValue, entry.ObservedAt, ttl)
+			}
+			if expireAccountHealth(&entry, now) {
+				entry.Account = publicAccountID(entry.AuthID)
+				accountRouter.health[accountHealthKey(entry.AuthID, entry.Model)] = entry
+				continue
+			}
+		} else if entry.CooldownUntil.IsZero() || !now.Before(entry.CooldownUntil) {
+			if entry.State != "expired" && entry.State != "probe_pending" {
+				continue
+			}
 		}
 		entry.Account = publicAccountID(entry.AuthID)
 		accountRouter.health[accountHealthKey(entry.AuthID, entry.Model)] = entry

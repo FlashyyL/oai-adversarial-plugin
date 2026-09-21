@@ -16,10 +16,10 @@ func TestPanelSchemaAndAliases(t *testing.T) {
 		}
 		seen[name] = true
 	}
-	if !seen["accepted-state-lengths"] || !seen["timezone"] || len(seen) != 22 {
+	if !seen["accepted-state-lengths"] || !seen["timezone"] || len(seen) != 26 {
 		t.Fatal("missing fields")
 	}
-	b, err := normalizePanelConfig([]byte("operation-mode: business-only\noverride-policy: always\noverride-models: [gpt-6-astra]\nprobe-interval-seconds: 10\nturn-state-override:\n  value: preserved\n  probe:\n    enabled: true\n    prefetch-minutes: 3\n"))
+	b, err := normalizePanelConfig([]byte("operation-mode: business-only\nsession-guard-mode: enforce\nsession-provenance-ttl-minutes: 90\noverride-policy: always\noverride-models: [gpt-6-astra]\nprobe-interval-seconds: 10\nturn-state-override:\n  value: preserved\n  probe:\n    enabled: true\n    prefetch-minutes: 3\n"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -30,7 +30,7 @@ func TestPanelSchemaAndAliases(t *testing.T) {
 		t.Fatal(err)
 	}
 	c := root.Config
-	if !c.Enabled || !c.Force || probeEnabled(c.Probe) || *c.Probe.PrefetchMinutes != 0 || *c.Probe.IntervalSeconds != 10 || c.Value != "preserved" {
+	if !c.Enabled || !c.Force || c.SessionGuardMode != sessionGuardModeEnforce || c.SessionProvenanceTTLMinutes != 90 || probeEnabled(c.Probe) || *c.Probe.PrefetchMinutes != 0 || *c.Probe.IntervalSeconds != 10 || c.Value != "preserved" {
 		t.Fatal("alias merge failed")
 	}
 }
@@ -53,7 +53,7 @@ func TestHighestPriorityPanelConfig(t *testing.T) {
 }
 
 func TestPanelInvalidValuesRedacted(t *testing.T) {
-	for _, input := range []string{"operation-mode: secret-invalid", "probe-interval-seconds: 0", "probe-timeout-seconds: 1.5", "override-models: [12]", "override-models: []", "probe-credential-file: https://secret-invalid", "prefetch-minutes: 55\nstate-ttl-minutes: 55", "turn-state-override: secret-invalid"} {
+	for _, input := range []string{"operation-mode: secret-invalid", "session-guard-mode: secret-invalid", "session-provenance-ttl-minutes: 0", "probe-interval-seconds: 0", "probe-timeout-seconds: 1.5", "override-models: [12]", "override-models: []", "probe-credential-file: https://secret-invalid", "prefetch-minutes: 55\nstate-ttl-minutes: 55", "turn-state-override: secret-invalid"} {
 		_, err := normalizePanelConfig([]byte(input))
 		if err == nil || strings.Contains(err.Error(), "secret-invalid") {
 			t.Fatalf("unsafe validation: %v", err)
@@ -72,6 +72,16 @@ func TestBusinessOnlyNoStaticValue(t *testing.T) {
 	if currentProbeConfig().Config.Enabled {
 		t.Fatal("probe enabled")
 	}
+	// A developer machine may have a persisted production snapshot at the
+	// default path. Reset only the counters under test after configuration has
+	// loaded it; the assertion below then detects probes started by this mode,
+	// not historical probes from another process.
+	probeTrack.mu.Lock()
+	probeTrack.probesTotal = 0
+	probeTrack.probesOK = 0
+	probeTrack.values = map[string]stateEntry{}
+	probeTrack.candidates = map[string]stateEntry{}
+	probeTrack.mu.Unlock()
 	headers, status := applyTurnStateOverride("gpt-6-astra", "", http.Header{})
 	if headers != nil || status != "" {
 		t.Fatal("injected without baseline")

@@ -58,7 +58,10 @@ var hostAuthGetFunc = func(index string) (json.RawMessage, error) {
 }
 
 func (e *probeEngine) resolveProbeCredential(cfg probeConfig) (probeCredential, error) {
-	if cfg.AccountMode != "highest-priority" {
+	if cfg.AccountMode != "highest-priority" && !(cfg.AccountMode == "all-accounts" && cfg.TargetAuthID != "") {
+		if cfg.TargetAuthID != "" {
+			return probeCredential{}, fmt.Errorf("account renewal requires automatic credential selection")
+		}
 		return readProbeCredential(cfg.CredFile)
 	}
 	entries, err := hostAuthListFunc()
@@ -66,6 +69,15 @@ func (e *probeEngine) resolveProbeCredential(cfg probeConfig) (probeCredential, 
 		return probeCredential{}, fmt.Errorf("list CPA credentials: %w", err)
 	}
 	eligible := e.eligibleProbeAccounts(entries, time.Now())
+	if cfg.TargetAuthID != "" {
+		filtered := make([]hostAuthEntry, 0, 1)
+		for _, entry := range eligible {
+			if entry.ID == cfg.TargetAuthID {
+				filtered = append(filtered, entry)
+			}
+		}
+		eligible = filtered
+	}
 	limit := cfg.CandidateLimit
 	if limit <= 0 || limit > len(eligible) {
 		limit = len(eligible)

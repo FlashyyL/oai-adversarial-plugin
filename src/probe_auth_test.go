@@ -32,6 +32,35 @@ func TestHighestPriorityCredentialSelectionStaysAvailable(t *testing.T) {
 	}
 }
 
+func TestRenewalCredentialNeverFallsBackToDifferentAccount(t *testing.T) {
+	oldList, oldGet := hostAuthListFunc, hostAuthGetFunc
+	t.Cleanup(func() { hostAuthListFunc, hostAuthGetFunc = oldList, oldGet })
+	disabled := false
+	hostAuthListFunc = func() ([]hostAuthEntry, error) {
+		return []hostAuthEntry{{ID: "other", AuthIndex: "other", Provider: "codex", Priority: 99}, {ID: "owner", AuthIndex: "owner-index", Provider: "codex", Priority: 1, Disabled: disabled}}, nil
+	}
+	hostAuthGetFunc = func(index string) (json.RawMessage, error) {
+		if index != "owner-index" {
+			t.Fatal("renewal selected another account")
+		}
+		return json.RawMessage(`{"access_token":"synthetic-test-token"}`), nil
+	}
+	e := &probeEngine{}
+	cfg := probeConfig{AccountMode: "highest-priority", TargetAuthID: "owner", CandidateLimit: 1}
+	cred, err := e.resolveProbeCredential(cfg)
+	if err != nil || cred.AuthID != "owner" {
+		t.Fatal("renewal did not select its target")
+	}
+	disabled = true
+	if _, err = e.resolveProbeCredential(cfg); err == nil {
+		t.Fatal("disabled target must not fall back to another account")
+	}
+	cfg.AccountMode = "fixed"
+	if _, err = e.resolveProbeCredential(cfg); err == nil {
+		t.Fatal("mode change must not switch renewal to fixed credentials")
+	}
+}
+
 func TestHighestPriorityCredentialRejectsInvalidAndNonCodex(t *testing.T) {
 	oldList, oldGet := hostAuthListFunc, hostAuthGetFunc
 	t.Cleanup(func() { hostAuthListFunc = oldList; hostAuthGetFunc = oldGet })

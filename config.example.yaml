@@ -47,6 +47,22 @@ plugins:
         # baseline, or clear the unbound client ticket when none is available.
         force: true
 
+        # ---- account/session provenance guard ------------------------------
+        # observe: record same/foreign/unknown ownership without changing the
+        #          outbound header (recommended first rollout stage)
+        # enforce: a state known to belong to another AuthID/model is removed;
+        #          it is replaced only when the selected AuthID has its own
+        #          unexpired healthy state
+        # off:     legacy request-side adoption behavior
+        # Unknown client states may pass in observe/enforce mode, but they do
+        # not seed an account pool until a successful matching upstream
+        # response confirms ownership.
+        session-guard-mode: observe
+
+        # Short-lived in-memory ownership mapping. Only a SHA-256 fingerprint
+        # and account/model metadata are retained; no token body is duplicated.
+        session-provenance-ttl-minutes: 60
+
         # ---- probe track (manual mode) --------------------------------------
         probe:
           enabled: true

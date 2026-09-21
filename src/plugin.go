@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -22,7 +23,6 @@ const (
 var dashboard []byte
 
 type interceptRequest struct {
-	Metadata       map[string]any
 	RequestID      string
 	TraceID        string
 	SourceFormat   string
@@ -31,12 +31,13 @@ type interceptRequest struct {
 	RequestedModel string
 	Headers        http.Header
 	Body           []byte
+	Metadata       map[string]any
 }
 
 type interceptResponse struct {
-	ClearHeaders    []string    `json:"ClearHeaders,omitempty"`
 	Body            []byte      `json:"Body,omitempty"`
 	Headers         http.Header `json:"Headers,omitempty"`
+	ClearHeaders    []string    `json:"ClearHeaders,omitempty"`
 	Terminate       bool        `json:"Terminate,omitempty"`
 	StatusCode      int         `json:"StatusCode,omitempty"`
 	ResponseHeaders http.Header `json:"ResponseHeaders,omitempty"`
@@ -108,30 +109,35 @@ type auditRecord struct {
 	Account      string `json:"account,omitempty"`
 	AccountEmail string `json:"account_email,omitempty"`
 	conversion
-	RequestID               string `json:"request_id"`
-	TraceID                 string `json:"trace_id,omitempty"`
-	Model                   string `json:"model"`
-	RequestedModel          string `json:"requested_model,omitempty"`
-	Time                    string `json:"time"`
-	UpstreamModel           string `json:"upstream_model,omitempty"`
-	ModelChecked            bool   `json:"model_checked"`
-	ModelMismatch           bool   `json:"model_mismatch"`
-	DetectionExempt         bool   `json:"detection_exempt,omitempty"`
-	TurnStateLength         int    `json:"turn_state_length"`
-	TurnStateSource         string `json:"turn_state_source,omitempty"`
-	TurnStatePreview        string `json:"turn_state_preview,omitempty"`
-	TurnStateValue          string `json:"turn_state_value,omitempty"`
-	TurnStateTruncated      bool   `json:"turn_state_truncated,omitempty"`
-	TurnStateOverride       string `json:"turn_state_override,omitempty"`
-	TurnStateInjectedLength int    `json:"turn_state_injected_length,omitempty"`
-	TurnStateOriginalLength *int   `json:"turn_state_original_length,omitempty"`
-	TurnStateResponseOriginalLength *int `json:"turn_state_response_original_length,omitempty"`
-	TurnStateResponseInjectedLength int `json:"turn_state_response_injected_length,omitempty"`
-	TurnStateResponseStatus string `json:"turn_state_response_status,omitempty"`
+	RequestID                       string `json:"request_id"`
+	TraceID                         string `json:"trace_id,omitempty"`
+	Model                           string `json:"model"`
+	RequestedModel                  string `json:"requested_model,omitempty"`
+	Time                            string `json:"time"`
+	UpstreamModel                   string `json:"upstream_model,omitempty"`
+	ModelChecked                    bool   `json:"model_checked"`
+	ModelMismatch                   bool   `json:"model_mismatch"`
+	DetectionExempt                 bool   `json:"detection_exempt,omitempty"`
+	TurnStateLength                 int    `json:"turn_state_length"`
+	TurnStateSource                 string `json:"turn_state_source,omitempty"`
+	TurnStatePreview                string `json:"turn_state_preview,omitempty"`
+	TurnStateValue                  string `json:"turn_state_value,omitempty"`
+	TurnStateTruncated              bool   `json:"turn_state_truncated,omitempty"`
+	TurnStateOverride               string `json:"turn_state_override,omitempty"`
+	TurnStateInjectedLength         int    `json:"turn_state_injected_length,omitempty"`
+	TurnStateProvenance             string `json:"turn_state_provenance,omitempty"`
+	TurnStateOwner                  string `json:"turn_state_owner,omitempty"`
+	TurnStateFingerprint            string `json:"turn_state_fingerprint,omitempty"`
+	TurnStateOriginalLength         *int   `json:"turn_state_original_length,omitempty"`
+	TurnStateResponseOriginalLength *int   `json:"turn_state_response_original_length,omitempty"`
+	TurnStateResponseInjectedLength int    `json:"turn_state_response_injected_length,omitempty"`
+	TurnStateResponseStatus         string `json:"turn_state_response_status,omitempty"`
 	// In-flight evidence is never restored from snapshots or exposed by the API.
-	responseTicket string
-	responseModel string
-	DegradedRejected        bool   `json:"degraded_rejected,omitempty"`
+	responseTicket   string
+	responseModel    string
+	DegradedRejected bool   `json:"degraded_rejected,omitempty"`
+	RejectionKind    string `json:"rejection_kind,omitempty"`
+	QuotaStatus      string `json:"quota_status,omitempty"`
 }
 
 type auditState struct {
@@ -227,30 +233,69 @@ func intercept(raw []byte) (interceptResponse, error) {
 		return interceptResponse{}, nil
 	}
 	scope := selectedAccount(req.Metadata, req.Headers)
-	authID, _ := req.Metadata["selected_auth_id"].(string)
+	authID := selectedAuthID(req.Metadata)
+	now := time.Now().UTC()
+	accountModel := businessModelName(req.Model, req.RequestedModel)
+	turnStateSessions.bindRequest(req.RequestID, authID, accountModel, now)
+	if accountRouter.needsRenewal(authID, accountModel, now) {
+		probeTrack.renewAccount(authID, accountModel, now)
+	}
+	clientState := headerValue(req.Headers, turnStateHeader)
+	provenance := turnStateSessions.inspect(req.Headers, req.Body, req.Metadata, authID, accountModel, clientState, now)
+	// A client-carried state may recover an account only when its owner is
+	// already known to be the selected AuthID. Unknown states remain pass-through
+	// evidence until a successful upstream response confirms their ownership.
+	if !sessionGuardEnabled() || provenance.Kind == "same-account" {
+		accountRouter.observeRequestState(authID, accountModel, clientState, now)
+	}
 	// Degraded-model rejection: when the switch is on and the request targets
 	// a model with business degradation evidence, or probe evidence without
 	// a usable baseline, terminate with 403. A failing prefetch must not
 	// interrupt traffic still protected by the active or successor value.
-	if message := scopedRejectMessage(scope, req.Model, req.RequestedModel); message != "" {
+	message := degradedRejectMessageForAccount(authID, req.Model, req.RequestedModel)
+	if scope != "" || currentProbeConfig().Config.AccountMode != "" {
+		message = scopedRejectMessage(scope, req.Model, req.RequestedModel)
+	}
+	rejectionKind, rejectionStatus := "degraded_model_rejected", http.StatusForbidden
+	responseHeaders := http.Header{"Content-Type": {"application/json; charset=utf-8"}}
+	if kind, until := accountRouter.quotaBlock(authID, accountModel, now); kind != "" {
+		message = "该账号额度已耗尽或请求受限，等待冷却结束；当前没有选中可用替补账号。"
+		rejectionKind, rejectionStatus = kind, http.StatusTooManyRequests
+		responseHeaders.Set("Retry-After", strconv.Itoa(max(1, int(until.Sub(now).Seconds()))))
+	} else if message != "" {
+		accountRouter.mu.Lock()
+		entry := accountRouter.health[accountHealthKey(authID, routingModelKey(accountModel))]
+		accountRouter.mu.Unlock()
+		if entry.State == "auth_error" {
+			rejectionKind, rejectionStatus = "account_auth_error", http.StatusUnauthorized
+		}
+		if entry.State == "transient_failure" {
+			rejectionKind, rejectionStatus = "account_temporarily_unavailable", http.StatusServiceUnavailable
+		}
+	}
+	if message != "" {
 		history.record(auditRecord{
 			AccountScope: scope, AuthBinding: accountScope(authID),
 			Account:   targetAccount(scopedTarget(scope, req.Model)),
 			RequestID: req.RequestID, TraceID: req.TraceID,
 			Model: req.Model, RequestedModel: req.RequestedModel,
-			Time:             time.Now().UTC().Format(time.RFC3339Nano),
-			DegradedRejected: true,
+			Time:                 time.Now().UTC().Format(time.RFC3339Nano),
+			DegradedRejected:     rejectionKind == "degraded_model_rejected",
+			RejectionKind:        rejectionKind,
+			TurnStateProvenance:  provenance.Kind,
+			TurnStateOwner:       publicAccountIDOrEmpty(provenance.OwnerAuthID),
+			TurnStateFingerprint: provenance.Fingerprint,
 			// The request never reaches normalization, so the conversion keeps
 			// empty slices (never nil) - a nil slice marshals as JSON null and
 			// the dashboard expects arrays.
 			conversion: conversion{Target: currentTimezone(), Original: []string{}, Paths: []string{}},
 		})
 		payload, _ := json.Marshal(map[string]any{"error": map[string]string{
-			"type": "degraded_model_rejected", "message": message,
+			"type": rejectionKind, "message": message,
 		}})
 		return interceptResponse{
-			Terminate: true, StatusCode: http.StatusForbidden,
-			ResponseHeaders: http.Header{"Content-Type": {"application/json; charset=utf-8"}},
+			Terminate: true, StatusCode: rejectionStatus,
+			ResponseHeaders: responseHeaders,
 			ResponseBody:    payload,
 		}, nil
 	}
@@ -265,10 +310,62 @@ func intercept(raw []byte) (interceptResponse, error) {
 		}, nil
 	}
 	originalLength := len(headerValue(req.Headers, turnStateHeader))
-	overrideHeaders, overrideStatus := applyScopedOverride(scope, req.Model, req.RequestedModel, req.Headers)
+	overrideInput := req.Headers
+	foreignState := provenance.Kind == "foreign-account" || provenance.Kind == "foreign-model"
+	enforceForeign := foreignState && provenance.Mode == sessionGuardModeEnforce
+	expiredClient := false
+	if issued, ok := parseTurnStateTimestamp(clientState); ok && degradationDetectionEnabled(req.Model, req.RequestedModel) {
+		expiredClient = !issued.Add(currentProbeConfig().Config.TTL).After(now)
+	}
+	if enforceForeign || expiredClient {
+		overrideInput = req.Headers.Clone()
+		overrideInput.Del(turnStateHeader)
+	}
+	overrideHeaders, overrideStatus := applyTurnStateOverrideForAccount(authID, req.Model, req.RequestedModel, overrideInput)
+	if scope != "" || currentProbeConfig().Config.AccountMode != "" {
+		overrideHeaders, overrideStatus = applyScopedOverride(scope, req.Model, req.RequestedModel, req.Headers)
+	}
+	clearHeaders := []string(nil)
+	if enforceForeign || expiredClient {
+		if overrideHeaders != nil && headerValue(overrideHeaders, turnStateHeader) != "" {
+			overrideStatus = "session-foreign-replaced"
+			if enforceForeign {
+				turnStateSessions.noteEnforcement("replaced")
+			}
+		} else {
+			overrideStatus = "session-foreign-stripped"
+			clearHeaders = []string{turnStateHeader}
+			// CPA 7.3's host can flatten ClearHeaders into a complete header
+			// snapshot, which its executor then merges into the original map.
+			// An explicit empty value survives that merge and prevents the
+			// original client value from being reintroduced. Codex omits it
+			// from the actual upstream request.
+			overrideHeaders = http.Header{turnStateHeader: []string{""}}
+			if enforceForeign {
+				turnStateSessions.noteEnforcement("stripped")
+			}
+		}
+		if expiredClient && !enforceForeign {
+			if headerValue(overrideHeaders, turnStateHeader) == "" {
+				overrideStatus = "expired-state-stripped"
+			} else {
+				overrideStatus = "expired-state-replaced"
+			}
+		}
+	}
 	injectedLength := 0
 	if overrideHeaders != nil {
 		injectedLength = len(overrideHeaders.Get(turnStateHeader))
+	}
+	finalState := clientState
+	if len(clearHeaders) > 0 {
+		finalState = ""
+	}
+	if value := headerValue(overrideHeaders, turnStateHeader); value != "" {
+		finalState = value
+	}
+	if finalState != "" && (provenance.Kind == "same-account" || accountRouter.stateOwnedBy(authID, accountModel, finalState, now)) {
+		turnStateSessions.noteOwned(req.Headers, req.Body, req.Metadata, authID, accountModel, finalState, "request-account-state", now)
 	}
 	history.record(auditRecord{
 		AccountScope: scope, AuthBinding: accountScope(authID),
@@ -277,6 +374,9 @@ func intercept(raw []byte) (interceptResponse, error) {
 		Model: req.Model, RequestedModel: req.RequestedModel,
 		Time:              time.Now().UTC().Format(time.RFC3339Nano),
 		TurnStateOverride: overrideStatus, TurnStateInjectedLength: injectedLength,
+		TurnStateProvenance:     provenance.Kind,
+		TurnStateOwner:          publicAccountIDOrEmpty(provenance.OwnerAuthID),
+		TurnStateFingerprint:    provenance.Fingerprint,
 		TurnStateOriginalLength: &originalLength,
 	})
 	history.observeTurnState(req.RequestID, headerValue(req.Headers, turnStateHeader), "request")
@@ -285,7 +385,8 @@ func intercept(raw []byte) (interceptResponse, error) {
 		response.Body = body
 	}
 	response.Headers = overrideHeaders
-	if overrideHeaders == nil && overrideStatus != "" && headerValue(req.Headers, turnStateHeader) != "" {
+	response.ClearHeaders = clearHeaders
+	if (scope != "" || currentProbeConfig().Config.AccountMode != "") && overrideHeaders == nil && overrideStatus != "" && headerValue(req.Headers, turnStateHeader) != "" {
 		response.ClearHeaders = []string{turnStateHeader}
 		// CPA 7.3.6 merges the plugin chain into a full header map but drops
 		// ClearHeaders on return. Keep an explicit empty replacement so its
@@ -324,6 +425,11 @@ func (s *auditState) record(record auditRecord) {
 				existing.TurnStateOriginalLength = record.TurnStateOriginalLength
 				existing.TurnStateInjectedLength = record.TurnStateInjectedLength
 			}
+			if record.TurnStateProvenance != "" {
+				existing.TurnStateProvenance = record.TurnStateProvenance
+				existing.TurnStateOwner = record.TurnStateOwner
+				existing.TurnStateFingerprint = record.TurnStateFingerprint
+			}
 			if record.Action != "" || len(record.Original) > 0 || record.Model != "" {
 				existing.conversion = record.conversion
 				existing.Model = record.Model
@@ -358,6 +464,34 @@ func (s *auditState) record(record auditRecord) {
 		return
 	}
 	s.records = append(s.records, record)
+}
+
+func (s *auditState) observeSessionGuard(requestID string, decision turnStateProvenanceDecision, override string, injectedLength int) {
+	requestID = strings.TrimSpace(requestID)
+	if requestID == "" || (decision.Kind == "" && override == "") {
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i := range s.records {
+		if s.records[i].RequestID != requestID {
+			continue
+		}
+		if decision.Kind != "" {
+			foreign := decision.Kind == "foreign-account" || decision.Kind == "foreign-model"
+			if s.records[i].TurnStateProvenance == "" || foreign {
+				s.records[i].TurnStateProvenance = decision.Kind
+				s.records[i].TurnStateOwner = publicAccountIDOrEmpty(decision.OwnerAuthID)
+				s.records[i].TurnStateFingerprint = decision.Fingerprint
+			}
+		}
+		if override != "" {
+			s.records[i].TurnStateOverride = override
+			s.records[i].TurnStateInjectedLength = injectedLength
+		}
+		markStateDirty()
+		return
+	}
 }
 
 func (s *auditState) snapshot() map[string]any {

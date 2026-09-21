@@ -165,6 +165,36 @@ func scopedRejectMessage(scope, model, requested string) string {
 	return degradedRejectMessage(scopedTarget(scope, model), scopedTarget(scope, requested))
 }
 
+func (e *probeEngine) scopedLeaseAwaitingRenewal(target string) bool {
+	scope, model := splitTarget(target)
+	if scope == "" {
+		return false
+	}
+	e.mu.Lock()
+	authID := ""
+	for id, binding := range e.accountBindings {
+		if binding == scope {
+			authID = id
+			break
+		}
+	}
+	e.mu.Unlock()
+	if authID == "" {
+		return false
+	}
+	accountRouter.mu.Lock()
+	defer accountRouter.mu.Unlock()
+	if !accountRouter.config.Config.Enabled || accountRouter.config.Error != "" {
+		return false
+	}
+	entry, ok := accountRouter.health[accountHealthKey(authID, routingModelKey(model))]
+	if !ok {
+		return false
+	}
+	expireAccountHealth(&entry, time.Now().UTC())
+	return entry.State == "expired" || entry.State == "probe_pending"
+}
+
 func applyScopedOverride(scope, model, requested string, headers http.Header) (http.Header, string) {
 	if !degradationDetectionEnabled(model, requested) {
 		return nil, ""

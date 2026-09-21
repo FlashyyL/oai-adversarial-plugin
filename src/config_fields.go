@@ -20,11 +20,15 @@ type panelField struct {
 }
 
 var panelFields = []panelField{
+	{Name: "session-guard-mode", Type: "enum", EnumValues: []string{"off", "observe", "enforce"}, Description: "会话票据来源守卫：observe 观测；enforce 剥离已知异账号票据，只允许当前账号有效票据接管。", path: []string{"session-guard-mode"}},
+	{Name: "session-provenance-ttl-minutes", Type: "integer", Description: "会话与票据来源记录的内存有效期（1–1440 分钟）。", path: []string{"session-provenance-ttl-minutes"}, min: 1, max: 1440},
 	{Name: "timezone", Type: "string", Description: "请求目标 IANA 时区；默认 America/Los_Angeles。与面板显示及休眠使用的 UTC+8 无关。"},
 	{Name: "operation-mode", Type: "enum", EnumValues: []string{"business-only", "probe"}, Description: "运行模式：business-only 仅业务观测、不发主动探测；probe 启用探测能力（任务由探测控制台控制）。留空继承旧 YAML。"},
 	{Name: "experimental-account-routing", Type: "boolean", Description: "实验性账号路由：仅在同一优先级候选中优先健康账号，按配置的长度策略、模型一致性和鉴权结果评估。关闭时仍只读记录健康证据。"},
 	{Name: "accepted-state-lengths", Type: "array", Description: "可接受的 State 字节长度，JSON 整数数组；默认 [292,332]。1–32 个不同值，每个 1–4096。按实际账号配置，不根据 Team 等套餐名称推断。", path: []string{"accepted-state-lengths"}},
-	{Name: "account-failure-threshold", Type: "integer", Description: "连续失败达到多少次后记录瞬时异常证据（1–10）；不冷却或禁用账号。", min: 1, max: 10},
+	{Name: "account-degraded-cooldown-minutes", Type: "integer", Description: "业务异常或鉴权失败后的路由冷却分钟数（1–1440）。不禁用 CPA 账号。", min: 1, max: 1440},
+	{Name: "account-failure-cooldown-minutes", Type: "integer", Description: "连续瞬时失败后的路由冷却分钟数（1–120）。", min: 1, max: 120},
+	{Name: "account-failure-threshold", Type: "integer", Description: "连续瞬时失败达到多少次后暂时避开该账号（1–10）。", min: 1, max: 10},
 	{Name: "probe-account-mode", Type: "enum", EnumValues: []string{"all-accounts", "highest-priority", "fixed"}, Description: "探测账号：all-accounts 为所有可用账号独立维护票据；highest-priority 自动选择 CPA 中优先级最高的健康 Codex 账号；fixed 使用凭证文件。", path: []string{"probe", "account-mode"}},
 	{Name: "probe-candidate-limit", Type: "integer", Description: "每轮允许尝试的候选账号上限（1–50）。", path: []string{"probe", "candidate-limit"}, min: 1, max: 50},
 	{Name: "override-policy", Type: "enum", EnumValues: []string{"preserve-healthy-client", "always"}, Description: "覆写策略兼容旧配置；账号隔离模式只使用本账号的有效基线，不按长度信任客户端票据。"},
