@@ -11,8 +11,9 @@ import (
 )
 
 const (
-	pluginID                   = "timezone-override"
-	pluginVersion              = "1.5.48"
+	pluginID                   = "oai-adversarial-plugin"
+	legacyPluginID             = "timezone-override"
+	pluginVersion              = "1.5.63"
 	historyLimit               = 200
 	schemaVersion              = 6
 	streamChunkHeaderInitIndex = -1
@@ -29,6 +30,7 @@ type interceptRequest struct {
 	ToFormat       string
 	Model          string
 	RequestedModel string
+	Stream         bool
 	Headers        http.Header
 	Body           []byte
 }
@@ -103,35 +105,57 @@ type responseInterceptOutput struct {
 }
 
 type auditRecord struct {
-	AccountScope string `json:"-"`
-	AuthBinding  string `json:"-"`
-	Account      string `json:"account,omitempty"`
-	AccountEmail string `json:"account_email,omitempty"`
+	AccountScope     string `json:"-"`
+	AuthBinding      string `json:"-"`
+	Account          string `json:"account,omitempty"`
+	AccountEmail     string `json:"account_email,omitempty"`
+	RequestKind      string `json:"request_kind,omitempty"`
+	EvaluationID     string `json:"evaluation_id,omitempty"`
+	EvaluationKind   string `json:"evaluation_kind,omitempty"`
+	EvaluationSample int    `json:"evaluation_sample,omitempty"`
+	EvaluationError  string `json:"evaluation_error,omitempty"`
+	TimingSource     string `json:"timing_source,omitempty"`
 	conversion
-	RequestID               string `json:"request_id"`
-	TraceID                 string `json:"trace_id,omitempty"`
-	Model                   string `json:"model"`
-	RequestedModel          string `json:"requested_model,omitempty"`
-	Time                    string `json:"time"`
-	UpstreamModel           string `json:"upstream_model,omitempty"`
-	ModelChecked            bool   `json:"model_checked"`
-	ModelMismatch           bool   `json:"model_mismatch"`
-	DetectionExempt         bool   `json:"detection_exempt,omitempty"`
-	TurnStateLength         int    `json:"turn_state_length"`
-	TurnStateSource         string `json:"turn_state_source,omitempty"`
-	TurnStatePreview        string `json:"turn_state_preview,omitempty"`
-	TurnStateValue          string `json:"turn_state_value,omitempty"`
-	TurnStateTruncated      bool   `json:"turn_state_truncated,omitempty"`
-	TurnStateOverride       string `json:"turn_state_override,omitempty"`
-	TurnStateInjectedLength int    `json:"turn_state_injected_length,omitempty"`
-	TurnStateOriginalLength *int   `json:"turn_state_original_length,omitempty"`
-	TurnStateResponseOriginalLength *int `json:"turn_state_response_original_length,omitempty"`
-	TurnStateResponseInjectedLength int `json:"turn_state_response_injected_length,omitempty"`
-	TurnStateResponseStatus string `json:"turn_state_response_status,omitempty"`
+	RequestID                       string `json:"request_id"`
+	TraceID                         string `json:"trace_id,omitempty"`
+	Model                           string `json:"model"`
+	RequestedModel                  string `json:"requested_model,omitempty"`
+	Time                            string `json:"time"`
+	UpstreamModel                   string `json:"upstream_model,omitempty"`
+	ModelChecked                    bool   `json:"model_checked"`
+	ModelMismatch                   bool   `json:"model_mismatch"`
+	DetectionExempt                 bool   `json:"detection_exempt,omitempty"`
+	TurnStateLength                 int    `json:"turn_state_length"`
+	TurnStateSource                 string `json:"turn_state_source,omitempty"`
+	TurnStatePreview                string `json:"turn_state_preview,omitempty"`
+	TurnStateValue                  string `json:"turn_state_value,omitempty"`
+	TurnStateTruncated              bool   `json:"turn_state_truncated,omitempty"`
+	TurnStateOverride               string `json:"turn_state_override,omitempty"`
+	TurnStateInjectedLength         int    `json:"turn_state_injected_length,omitempty"`
+	TurnStateOriginalLength         *int   `json:"turn_state_original_length,omitempty"`
+	TurnStateResponseOriginalLength *int   `json:"turn_state_response_original_length,omitempty"`
+	TurnStateResponseInjectedLength int    `json:"turn_state_response_injected_length,omitempty"`
+	TurnStateResponseStatus         string `json:"turn_state_response_status,omitempty"`
+	// Token accounting observed in the response stream (numbers only, no
+	// text): used to quantify a suspected degraded tier.
+	ResponseTokensInput     *int     `json:"response_tokens_input,omitempty"`
+	ResponseTokensOutput    *int     `json:"response_tokens_output,omitempty"`
+	ResponseTokensReasoning *int     `json:"response_tokens_reasoning,omitempty"`
+	ResponseTokensTotal     *int     `json:"response_tokens_total,omitempty"`
+	ResponseTokensComplete  bool     `json:"response_tokens_complete,omitempty"`
+	RequestLatencyMS        *float64 `json:"request_latency_ms,omitempty"`
+	FirstOutputLatencyMS    *float64 `json:"first_output_latency_ms,omitempty"`
+	RequestOutcome          string   `json:"request_outcome,omitempty"`
+	ConcurrencyState        string   `json:"concurrency_state,omitempty"`
+	ConcurrencyLimit        *int     `json:"concurrency_limit,omitempty"`
+	ConcurrencyRerouted     bool     `json:"concurrency_rerouted,omitempty"`
+	OutputTPS               *float64 `json:"output_tps,omitempty"`
 	// In-flight evidence is never restored from snapshots or exposed by the API.
-	responseTicket string
-	responseModel string
-	DegradedRejected        bool   `json:"degraded_rejected,omitempty"`
+	responseTicket       string
+	responseModel        string
+	performanceAttemptAt time.Time
+	firstOutputAt        time.Time
+	DegradedRejected     bool `json:"degraded_rejected,omitempty"`
 }
 
 type auditState struct {
@@ -161,6 +185,7 @@ func handleMethod(method string, raw []byte) (any, error) {
 	case "plugin.register", "plugin.reconfigure":
 		ensurePersistence()
 		configureTurnStateOverrideFromLifecycle(raw)
+		accountConcurrency.activateWeekly()
 		startStateMirror()
 		return map[string]any{
 			"schema_version": schemaVersion,
@@ -171,6 +196,7 @@ func handleMethod(method string, raw []byte) (any, error) {
 			},
 			"capabilities": map[string]bool{
 				"request_interceptor":         true,
+				"request_lifecycle_plugin":    true,
 				"management_api":              true,
 				"response_interceptor":        true,
 				"response_stream_interceptor": true,
@@ -182,9 +208,11 @@ func handleMethod(method string, raw []byte) (any, error) {
 	case "plugin.quiesce":
 		return struct{}{}, nil
 	case "request.intercept_before":
-		return interceptResponse{}, nil
+		return concurrencyBefore(raw)
 	case "request.intercept_after":
 		return intercept(raw)
+	case "request.complete":
+		return struct{}{}, completeRequest(raw)
 	case "response.intercept_after":
 		return interceptNonStreamingResponse(raw)
 	case "response.intercept_stream_chunk":
@@ -198,8 +226,17 @@ func handleMethod(method string, raw []byte) (any, error) {
 	case "management.register":
 		return map[string]any{
 			"routes": []map[string]string{
-				{"Method": "GET", "Path": "/timezone-override/requests"},
-				{"Method": "POST", "Path": "/timezone-override/probe-control"},
+				{"Method": "GET", "Path": "/" + pluginID + "/requests"},
+				{"Method": "GET", "Path": "/" + pluginID + "/account-concurrency"},
+				{"Method": "POST", "Path": "/" + pluginID + "/account-concurrency"},
+				{"Method": "POST", "Path": "/" + pluginID + "/probe-control"},
+				{"Method": "GET", "Path": "/" + pluginID + "/eval"},
+				{"Method": "POST", "Path": "/" + pluginID + "/eval-run"},
+				{"Method": "POST", "Path": "/" + pluginID + "/eval-cancel"},
+				{"Method": "POST", "Path": "/" + pluginID + "/eval-detail"},
+				// Existing diagnostic clients can keep using the old API paths.
+				{"Method": "GET", "Path": "/" + legacyPluginID + "/requests"},
+				{"Method": "POST", "Path": "/" + legacyPluginID + "/probe-control"},
 			},
 			"resources": []map[string]string{{
 				"Path": "/status", "Menu": "O/对抗插件",
@@ -211,6 +248,7 @@ func handleMethod(method string, raw []byte) (any, error) {
 	case "plugin.shutdown":
 		stopStateMirror()
 		probeTrackShutdown()
+		accountConcurrency.stopWeekly()
 		closePersistence()
 		return struct{}{}, nil
 	default:
@@ -218,15 +256,20 @@ func handleMethod(method string, raw []byte) (any, error) {
 	}
 }
 
-func intercept(raw []byte) (interceptResponse, error) {
+func intercept(raw []byte) (response interceptResponse, err error) {
 	var req interceptRequest
 	if err := json.Unmarshal(raw, &req); err != nil {
 		return interceptResponse{}, fmt.Errorf("decode interception: %w", err)
 	}
+	defer func() { response = stripConcurrencyHeader(req.Headers, response) }()
+	if guarded := concurrencyAfter(req); guarded.Terminate {
+		return guarded, nil
+	}
 	if req.ToFormat != "codex" {
 		return interceptResponse{}, nil
 	}
-	scope := selectedAccount(req.Metadata, req.Headers)
+	attemptAt := time.Now()
+	scope, accountEmail := selectedAccountInfo(req.Metadata, req.Headers)
 	authID, _ := req.Metadata["selected_auth_id"].(string)
 	// Degraded-model rejection: when the switch is on and the request targets
 	// a model with business degradation evidence, or probe evidence without
@@ -235,11 +278,13 @@ func intercept(raw []byte) (interceptResponse, error) {
 	if message := scopedRejectMessage(scope, req.Model, req.RequestedModel); message != "" {
 		history.record(auditRecord{
 			AccountScope: scope, AuthBinding: accountScope(authID),
-			Account:   targetAccount(scopedTarget(scope, req.Model)),
-			RequestID: req.RequestID, TraceID: req.TraceID,
+			AccountEmail: accountEmail,
+			Account:      targetAccount(scopedTarget(scope, req.Model)),
+			RequestID:    req.RequestID, TraceID: req.TraceID,
 			Model: req.Model, RequestedModel: req.RequestedModel,
-			Time:             time.Now().UTC().Format(time.RFC3339Nano),
-			DegradedRejected: true,
+			Time:                 time.Now().UTC().Format(time.RFC3339Nano),
+			DegradedRejected:     true,
+			performanceAttemptAt: attemptAt,
 			// The request never reaches normalization, so the conversion keeps
 			// empty slices (never nil) - a nil slice marshals as JSON null and
 			// the dashboard expects arrays.
@@ -272,15 +317,29 @@ func intercept(raw []byte) (interceptResponse, error) {
 	}
 	history.record(auditRecord{
 		AccountScope: scope, AuthBinding: accountScope(authID),
-		conversion: result, Account: targetAccount(scopedTarget(scope, req.Model)),
+		AccountEmail: accountEmail,
+		conversion:   result, Account: targetAccount(scopedTarget(scope, req.Model)),
 		RequestID: req.RequestID, TraceID: req.TraceID,
 		Model: req.Model, RequestedModel: req.RequestedModel,
 		Time:              time.Now().UTC().Format(time.RFC3339Nano),
 		TurnStateOverride: overrideStatus, TurnStateInjectedLength: injectedLength,
 		TurnStateOriginalLength: &originalLength,
+		performanceAttemptAt:    attemptAt,
 	})
 	history.observeTurnState(req.RequestID, headerValue(req.Headers, turnStateHeader), "request")
-	response := interceptResponse{}
+	diagnosticsEvent("request", map[string]any{
+		"id":         digestShort(req.RequestID),
+		"model":      req.Model,
+		"requested":  req.RequestedModel,
+		"format":     req.ToFormat,
+		"headers":    diagnosticsHeaderNames(req.Headers),
+		"state_in":   headerValue(req.Headers, turnStateHeader) != "",
+		"state_orig": originalLength,
+		"state_inj":  injectedLength,
+		"override":   overrideStatus,
+		"body":       bodyShape(req.Body),
+	})
+	response = interceptResponse{}
 	if result.Action != "unchanged" {
 		response.Body = body
 	}
@@ -296,6 +355,9 @@ func intercept(raw []byte) (interceptResponse, error) {
 }
 
 func (s *auditState) record(record auditRecord) {
+	if state, limit, rerouted := accountConcurrency.state(record.RequestID); state != "" {
+		record.ConcurrencyState, record.ConcurrencyLimit, record.ConcurrencyRerouted = state, limit, rerouted
+	}
 	defer markStateDirty()
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -305,6 +367,12 @@ func (s *auditState) record(record auditRecord) {
 				continue
 			}
 			existing := &s.records[i]
+			if record.ConcurrencyState != "" {
+				existing.ConcurrencyState, existing.ConcurrencyLimit, existing.ConcurrencyRerouted = record.ConcurrencyState, record.ConcurrencyLimit, record.ConcurrencyRerouted
+			}
+			if !record.performanceAttemptAt.IsZero() {
+				existing.resetPerformance(record.performanceAttemptAt)
+			}
 			if record.TurnStateOriginalLength != nil {
 				existing.TurnStateResponseOriginalLength = nil
 				existing.TurnStateResponseInjectedLength = 0
@@ -363,10 +431,7 @@ func (s *auditState) record(record auditRecord) {
 func (s *auditState) snapshot() map[string]any {
 	probeTrack.syncProbeAccounts()
 	probeTrack.mu.Lock()
-	emails := make(map[string]string, len(probeTrack.accounts))
-	for scope, entry := range probeTrack.accounts {
-		emails[scope] = entry.Email
-	}
+	emails := auditEmails(probeTrack.accounts)
 	probeTrack.mu.Unlock()
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -375,10 +440,27 @@ func (s *auditState) snapshot() map[string]any {
 	overridden := 0
 	for i := range s.records {
 		record := s.records[i]
-		record.AccountEmail = emails[record.AccountScope]
+		record.RequestOutcome = performanceOutcome(record.RequestOutcome)
+		if record.RequestOutcome != "" && record.ConcurrencyState != "" {
+			record.ConcurrencyState = record.RequestOutcome
+		}
+		if state, limit, rerouted := accountConcurrency.state(record.RequestID); state != "" {
+			record.ConcurrencyState, record.ConcurrencyLimit, record.ConcurrencyRerouted = state, limit, rerouted
+		} else if record.ConcurrencyState == "running" || record.ConcurrencyState == "reserved" {
+			record.ConcurrencyState = "unknown"
+		}
+		if record.EvaluationError != "" {
+			record.EvaluationError = safeEvalError(record.EvaluationError)
+		}
+		record.OutputTPS = requestTPS(record)
+		record.AccountEmail = emails.email(record)
+		if s.records[i].AccountEmail == "" && record.AccountEmail != "" {
+			s.records[i].AccountEmail = record.AccountEmail
+			markStateDirty()
+		}
 		// Preserve the historic observations, but publish today's policy even
 		// for records restored from snapshots predating model exemptions.
-		record.DetectionExempt = !degradationDetectionEnabled(record.Model, record.RequestedModel)
+		record.DetectionExempt = record.RequestKind == "evaluation" || !degradationDetectionEnabled(record.Model, record.RequestedModel)
 		if record.DetectionExempt {
 			record.ModelChecked = false
 			record.ModelMismatch = false
@@ -415,6 +497,31 @@ func management(raw []byte) (managementResponse, error) {
 		return managementResponse{}, fmt.Errorf("decode management request: %w", err)
 	}
 	switch {
+	case strings.HasSuffix(req.Path, "/account-concurrency"):
+		if req.Method != http.MethodGet && req.Method != http.MethodPost {
+			return managementResponse{StatusCode: http.StatusMethodNotAllowed}, nil
+		}
+		return concurrencyManagement(req.Body, req.Method == http.MethodPost), nil
+	case strings.HasSuffix(req.Path, "/eval"):
+		if req.Method != http.MethodGet {
+			return managementResponse{StatusCode: http.StatusMethodNotAllowed}, nil
+		}
+		return probeTrack.evalStateResponse(), nil
+	case strings.HasSuffix(req.Path, "/eval-run"):
+		if req.Method != http.MethodPost {
+			return managementResponse{StatusCode: http.StatusMethodNotAllowed}, nil
+		}
+		return probeTrack.evalRunResponse(req.Body), nil
+	case strings.HasSuffix(req.Path, "/eval-cancel"):
+		if req.Method != http.MethodPost {
+			return managementResponse{StatusCode: http.StatusMethodNotAllowed}, nil
+		}
+		return probeTrack.evalCancelResponse(req.Body), nil
+	case strings.HasSuffix(req.Path, "/eval-detail"):
+		if req.Method != http.MethodPost {
+			return managementResponse{StatusCode: http.StatusMethodNotAllowed}, nil
+		}
+		return probeTrack.evalDetailResponse(req.Body), nil
 	case strings.HasSuffix(req.Path, "/status"):
 		if req.Method != http.MethodGet {
 			return managementResponse{StatusCode: http.StatusMethodNotAllowed}, nil
@@ -444,10 +551,12 @@ func management(raw []byte) (managementResponse, error) {
 	}
 }
 
-// probeControl handles POST /timezone-override/probe-control:
+// probeControl handles POST /oai-adversarial-plugin/probe-control and its legacy alias:
 //
 //	{"model": "gpt-5.6-luna", "action": "pause"|"resume"|"probe-model"}
 //	{"action": "reject-degraded", "enabled": true|false}
+//	{"action": "turn-state-inject", "enabled": true|false}
+//	{"action": "diagnostics-journal", "enabled": true|false}
 //	{"action": "start-round"}   # start one user-initiated probe round
 //	{"action": "stop-current"}  # cancel the batch, preserve prefetch mode
 //	{"action": "stop-all"}      # cancel all tasks and halt prefetch
@@ -554,6 +663,18 @@ func probeControl(body []byte) (managementResponse, error) {
 			return jsonErrorResponse(http.StatusBadRequest, "缺少 enabled 字段"), nil
 		}
 		probeTrack.setRejectDegraded(*req.Enabled)
+	case "turn-state-inject":
+		if req.Enabled == nil {
+			return jsonErrorResponse(http.StatusBadRequest, "缺少 enabled 字段"), nil
+		}
+		probeTrack.setTurnStateInjectEnabled(*req.Enabled)
+	case "diagnostics-journal":
+		if req.Enabled == nil {
+			return jsonErrorResponse(http.StatusBadRequest, "缺少 enabled 字段"), nil
+		}
+		if err := probeTrack.setDiagnosticsJournal(*req.Enabled); err != nil {
+			return settingsErrorResponse(err)
+		}
 	case "reset-exit":
 		// Clear the cool-down / scheduled rest of one egress (or every
 		// egress when proxy is empty), returning them to rotation at once.
@@ -585,10 +706,12 @@ func probeControl(body []byte) (managementResponse, error) {
 		return jsonErrorResponse(http.StatusBadRequest, "不支持的操作："+action), nil
 	}
 	payload, _ := json.Marshal(map[string]any{
-		"ok":              true,
-		"skipped":         skipped,
-		"paused":          probeTrack.pausedModels(),
-		"reject_degraded": probeTrack.rejectDegradedEnabled(),
+		"ok":                        true,
+		"skipped":                   skipped,
+		"paused":                    probeTrack.pausedModels(),
+		"reject_degraded":           probeTrack.rejectDegradedEnabled(),
+		"turn_state_inject_enabled": probeTrack.turnStateInjectEnabled(),
+		"diagnostics_journal":       probeTrack.diagnosticsJournalEnabled(),
 	})
 	return managementResponse{
 		StatusCode: http.StatusOK,

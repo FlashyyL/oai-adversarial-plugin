@@ -156,6 +156,10 @@ type schedulerPickRequest struct {
 	Model      string
 	Stream     bool
 	Candidates []schedulerAuthCandidate
+	Options    struct {
+		Headers  http.Header
+		Metadata map[string]any
+	}
 }
 
 type schedulerAuthCandidate struct {
@@ -176,7 +180,7 @@ func pickAccountForRequest(raw []byte) (schedulerPickResponse, error) {
 	if err := json.Unmarshal(raw, &req); err != nil {
 		return schedulerPickResponse{}, fmt.Errorf("decode scheduler request: %w", err)
 	}
-	return accountRouter.pick(req, time.Now().UTC()), nil
+	return accountConcurrency.pick(req, accountRouter.pick(req, time.Now().UTC())), nil
 }
 
 func (m *accountRoutingManager) pick(req schedulerPickRequest, now time.Time) schedulerPickResponse {

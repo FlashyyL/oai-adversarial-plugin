@@ -1,4 +1,4 @@
-# Example configuration for the OAI-Adversarial Plugin (plugin id: timezone-override).
+# Example configuration for the OAI-Adversarial Plugin (plugin id: oai-adversarial-plugin).
 # Copy the block below into your CPA config.yaml under `plugins.configs`.
 #
 # Notes:
@@ -13,7 +13,7 @@ plugins:
   dir: "/CLIProxyAPI/logs/.plugins"
   configs:
     # ---- plugin id (must match the installed .so file name) -----------------
-    timezone-override:
+    oai-adversarial-plugin:
       enabled: true
       priority: 100
 
@@ -158,6 +158,10 @@ plugins:
           # Degraded-model rejection is ON by default and restored from the
           # state snapshot across reloads; toggle it from the dashboard
           # header (global switch, independent of the probe track).
+          # The "Turn-state injection" switch in the request settings
+          # (default on, persisted) stops the request-side baseline
+          # injection and the response-side degraded-ticket replacement;
+          # while off, client tickets and upstream state pass untouched.
           # suspect-threshold: in-round degradation-evidence failures needed
           # before the rejection switch treats the model as degraded (early
           # trigger; the full annotation still wins once the round completes).

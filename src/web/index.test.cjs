@@ -49,8 +49,8 @@ function panel(options={}) {
   win.parent=options.embedded?{document:{documentElement:host},getComputedStyle:()=>({getPropertyValue:name=>options.hostTokens?.[name]||''})}:win;
   if(options.crossOrigin)Object.defineProperty(win,'parent',{get(){throw new Error('cross origin');}});
   const context=vm.createContext({
-    document:{documentElement:root,querySelectorAll:()=>staticNodes,getElementById:get,createElement:tag=>new Element(tag),createDocumentFragment:()=>new Element('fragment')},
-    location:{pathname:'/management.html',host:'localhost',origin:'http://localhost'},
+    document:{documentElement:root,querySelectorAll:()=>staticNodes,getElementById:get,createElement:tag=>new Element(tag),createElementNS:(namespace,tag)=>new Element(tag),createDocumentFragment:()=>new Element('fragment')},
+    location:{pathname:options.pathname||'/management.html',host:'localhost',origin:'http://localhost'},
     navigator:{userAgent:'panel-test',language:options.browserLanguage},localStorage:{getItem:name=>{if(options.storageUnavailable)throw new Error('storage unavailable');return name==='cli-proxy-theme'?JSON.stringify({state:{theme:storedTheme}}):name==='cli-proxy-language'?storedLanguage:null;}},
     window:win,MutationObserver:class{constructor(fn){this.fn=fn;}observe(target,config){observers.push({fn:this.fn,filter:config.attributeFilter});}disconnect(){}},
     setInterval(){},setTimeout(){},URL,TextEncoder,TextDecoder,
@@ -58,14 +58,309 @@ function panel(options={}) {
   const script=html.match(/<script>([\s\S]*?)<\/script>/)[1];
   vm.runInContext(script,context);
   vm.runInContext('globalThis.translateTest=t;globalThis.messagesTest=messages;globalThis.renderTest=renderProbe;globalThis.renderPoolTest=renderPool;globalThis.openExitTest=openExitEditor;globalThis.renderDataTest=render;globalThis.actions=[];globalThis.controlResult=false;probeControl=async payload=>{actions.push(payload);return controlResult;}',context);
-  return {get,root,host,staticNodes,translate:context.translateTest,messages:context.messagesTest,changeLanguage:language=>{storedLanguage=JSON.stringify({state:{language}});for(const fn of windowEvents.storage||[])fn({key:'cli-proxy-language'});},changeHostLanguage:language=>{host.setAttribute('lang',language);notify('lang');},changeHost:theme=>{host.setAttribute('data-theme',theme);notify('data-theme');},changeStored:theme=>{storedTheme=theme;for(const fn of windowEvents.storage||[])fn({key:'cli-proxy-theme'});},changeSystem:dark=>{media.matches=dark;mediaEvents.change();},render:context.renderTest,renderPool:context.renderPoolTest,openExit:context.openExitTest,renderData:context.renderDataTest,actions:context.actions,setResult:value=>{context.controlResult=value;}};
+  vm.runInContext('globalThis.evalRenderTest=renderEval;globalThis.evalDetailTest=value=>{evalDetail=value;renderEvalDetail(value);};globalThis.evalActions=[];globalThis.evalReply={started:1};evalRequest=async(action,payload)=>{evalActions.push({action,payload});return evalReply;};',context);
+  vm.runInContext('globalThis.evalLogoutTest=requireLogin;globalThis.evalErrorTest=evalError;',context);
+  vm.runInContext('globalThis.concurrencyRenderTest=renderConcurrency;',context);
+return {renderConcurrency:context.concurrencyRenderTest,get,root,host,staticNodes,translate:context.translateTest,messages:context.messagesTest,changeLanguage:language=>{storedLanguage=JSON.stringify({state:{language}});for(const fn of windowEvents.storage||[])fn({key:'cli-proxy-language'});},changeHostLanguage:language=>{host.setAttribute('lang',language);notify('lang');},changeHost:theme=>{host.setAttribute('data-theme',theme);notify('data-theme');},changeStored:theme=>{storedTheme=theme;for(const fn of windowEvents.storage||[])fn({key:'cli-proxy-theme'});},changeSystem:dark=>{media.matches=dark;mediaEvents.change();},render:context.renderTest,renderPool:context.renderPoolTest,openExit:context.openExitTest,renderData:context.renderDataTest,actions:context.actions,setResult:value=>{context.controlResult=value;},logoutEval:context.evalLogoutTest,renderEval:context.evalRenderTest,renderEvalDetail:context.evalDetailTest,evalError:context.evalErrorTest,evalActions:context.evalActions,setEvalReply:value=>{context.evalReply=value;}};
 }
+
+function evalFixture(overrides={}){return {can_run:true,accounts:[{scope:'synthetic-a',account_email:'a@example.invalid'},{scope:'synthetic-b',account_email:'b@example.invalid'}],models:['gpt-6-astra'],jobs:[],results:[],...overrides};}
+function selectEval(p,index=0){const input=p.get('eval-accounts').children[index].children[0];input.checked=true;input.events.change();}
+
+function concurrencyFixture(overrides={}){const data={accounts:[{account:'safe-a',file_name:'a@example.invalid.json',account_email:'a@example.invalid',limit:8,in_flight:8},{account:'safe-b',file_name:'b.json',limit:2,in_flight:0}],active:[{account:'safe-a',request_id:'request-safe',model:'gpt-6-astra',kind:'business',status:'running',started_at:new Date().toISOString()}],recent:[],...overrides};data.accounts=data.accounts.map(a=>({weekly_threshold:0,...a}));return data;}
+function concurrencyInput(p,index=0){return p.get('concurrency-accounts').children[index].children[0].children[3].children[0].children[1];}
+function concurrencySave(p,index=0){return p.get('concurrency-accounts').children[index].children[0].children[3].children[2];}
+function weeklyInput(p,index=0){return p.get('concurrency-accounts').children[index].children[0].children[3].children[1].children[1];}
+function weeklySave(p,index=0){return concurrencySave(p,index);}
+
+test('account settings omit the side description and retain quota evidence in the status tooltip',()=>{
+  const p=panel(),account={account:'safe-a',file_name:'a@example.invalid.json',account_email:'a@example.invalid',limit:0,in_flight:2,weekly_threshold:90,weekly_quota:{state:'paused',used_percent:91,reset_at:'2026-10-08T00:00:00Z',updated_at:'2026-10-06T00:00:00Z'}};
+  p.renderConcurrency(concurrencyFixture({accounts:[account]}));
+  const input=weeklyInput(p);input.value='85.5';input.events.input();
+  for(const lang of ['zh-CN','en','zh-TW','ru']){p.changeLanguage(lang);assert.equal(weeklyInput(p),input);assert.equal(input.value,'85.5');assert.match(p.get('concurrency-accounts').children[0].children[0].children[2].title,/91%/);assert.equal(p.get('concurrency-accounts').children[0].children.length,1);assert.doesNotMatch(p.get('concurrency-accounts').textContent,/91%/);assert.ok(p.get('concurrency-accounts').textContent.includes(p.translate('7d 阈值暂停')));assert.doesNotMatch(p.get('concurrency-accounts').textContent,/a@example/);}
+  p.renderConcurrency(concurrencyFixture({accounts:[{...account,weekly_quota:{state:'ready',used_percent:0}}]}));assert.match(p.get('concurrency-accounts').children[0].children[0].children[2].title,/0%/);assert.equal(concurrencyInput(p).value,'0');
+  p.renderConcurrency(concurrencyFixture({accounts:[{...account,weekly_quota:{state:'unknown',error:'weekly_quota_query_failed'}}]}));assert.ok(p.get('concurrency-accounts').textContent.includes(p.translate('等待额度确认')));assert.ok(p.get('concurrency-accounts').children[0].children[0].children[2].title.includes(p.translate('额度查询失败，将自动重试；未确认刷新')));
+});
+
+test('one account save submits both fields, preserves both drafts on failure and accepts blank threshold as off',async()=>{
+  const p=panel();p.renderConcurrency(concurrencyFixture());
+  for(const value of ['-1','100.1','NaN','Infinity','bad']){weeklyInput(p).value=value;await weeklySave(p).events.click();assert.equal(p.evalActions.length,0);}
+  concurrencyInput(p).value='6';concurrencyInput(p).events.input();weeklyInput(p).value='90.5';weeklyInput(p).events.input();p.setEvalReply(concurrencyFixture({accounts:[{account:'safe-a',limit:6,weekly_threshold:90.5,weekly_quota:{state:'unknown'}}]}));await weeklySave(p).events.click();
+  assert.deepEqual(JSON.parse(JSON.stringify(p.evalActions[0])),{action:'account-concurrency',payload:{account:'safe-a',limit:6,weekly_threshold:90.5}});assert.equal(concurrencyInput(p).value,'6');assert.equal(weeklyInput(p).value,'90.5');assert.equal(concurrencySave(p),weeklySave(p));
+  p.setEvalReply(null);concurrencyInput(p).value='3';concurrencyInput(p).events.input();weeklyInput(p).value='75';weeklyInput(p).events.input();await weeklySave(p).events.click();assert.equal(weeklyInput(p).value,'75');assert.equal(concurrencyInput(p).value,'3');
+  weeklyInput(p).value='';p.setEvalReply(concurrencyFixture({accounts:[{account:'safe-a',limit:8,weekly_threshold:0}]}));await weeklySave(p).events.click();assert.equal(p.evalActions.at(-1).payload.weekly_threshold,0);assert.equal(weeklyInput(p).value,'0');
+});
+
+test('late weekly saves cannot resurrect a signed-out session or overwrite unrelated settings',async()=>{
+  const p=panel();p.renderConcurrency(concurrencyFixture());let finish;p.setEvalReply(new Promise(resolve=>finish=resolve));weeklyInput(p).value='90';const pending=weeklySave(p).events.click();p.logoutEval();p.renderConcurrency(concurrencyFixture({accounts:[{account:'safe-a',limit:3,weekly_threshold:70}]}));finish(concurrencyFixture({accounts:[{account:'safe-a',limit:8,weekly_threshold:90}]}));await pending;assert.equal(weeklyInput(p).value,'70');assert.equal(concurrencyInput(p).value,'3');assert.equal(weeklySave(p).disabled,false);
+});
+
+test('concurrency settings show only enabled credentials and restore their saved limits on re-enable',()=>{
+  const p=panel(),off={account:'off',file_name:'DISABLED_FILE_CANARY.json',account_email:'off@example.invalid',limit:9,in_flight:0,disabled:true},on={account:'on',file_name:'enabled.json',limit:3,in_flight:1,disabled:false,unavailable:true};
+  const data=concurrencyFixture({accounts:[off,on],active:[{account:'off',request_id:'old-active',model:'gpt-6-astra',kind:'business',status:'running',started_at:new Date().toISOString()}],recent:[{account:'off',request_id:'old-finished',model:'gpt-6-astra',kind:'business',status:'succeeded',started_at:new Date().toISOString(),completed_at:new Date().toISOString()}]});
+  p.renderConcurrency(data);assert.equal(p.get('concurrency-accounts').children.length,1);assert.equal(concurrencyInput(p).value,'3');assert.match(p.get('concurrency-accounts').textContent,/凭据 1/);assert.match(p.get('concurrency-active').textContent,/已停用凭据/);assert.match(p.get('concurrency-recent').textContent,/old-finished/);
+  p.get('account-email-toggle').events.click();assert.doesNotMatch(p.get('concurrency-accounts').textContent,/DISABLED_FILE_CANARY|off@example/);
+  assert.equal(data.accounts.length,2);assert.equal(data.accounts[0].limit,9);
+  p.renderConcurrency({...data,accounts:[{...off,disabled:false},on]});assert.equal(p.get('concurrency-accounts').children.length,2);assert.equal(concurrencyInput(p).value,'9');
+  p.renderConcurrency(data);assert.equal(p.get('concurrency-accounts').children.length,1);assert.equal(p.evalActions.length,0);
+});
+
+test('all disabled concurrency credentials produce a localized empty setting list without deleting history',()=>{
+  const p=panel(),data=concurrencyFixture({accounts:[{account:'safe-a',limit:8,disabled:true}],recent:[{account:'safe-a',request_id:'preserved-history',model:'gpt-6-astra',kind:'business',status:'succeeded',started_at:new Date().toISOString(),completed_at:new Date().toISOString()}]});p.renderConcurrency(data);
+  for(const lang of ['zh-CN','en','zh-TW','ru']){p.changeLanguage(lang);assert.equal(p.get('concurrency-accounts').children.length,0);assert.equal(p.get('concurrency-accounts').textContent,p.translate('没有已启用的原生 Codex 凭据'));assert.match(p.get('concurrency-recent').textContent,/preserved-history/);}
+});
+
+test('account concurrency preserves drafts, localizes states and protects credential filenames',()=>{
+  const p=panel();p.renderConcurrency(concurrencyFixture());const input=concurrencyInput(p);input.value='3';input.events.input();
+  p.get('concurrency-active-panel').open=false;
+  for(const lang of ['zh-CN','en','zh-TW','ru']){p.changeLanguage(lang);p.renderConcurrency(concurrencyFixture());assert.equal(concurrencyInput(p).value,'3');assert.equal(p.get('concurrency-active-panel').open,false);assert.doesNotMatch(p.get('concurrency-accounts').textContent,/a@example/);assert.ok(p.get('concurrency-accounts').textContent.includes(p.translate('并发已满')));}
+  assert.equal(concurrencyInput(p),input,'polling must retain the input and save controls');
+  p.get('account-email-toggle').events.click();assert.match(p.get('concurrency-accounts').textContent,/a@example.invalid.json/);
+  p.get('account-email-toggle').events.click();assert.doesNotMatch(p.get('concurrency-accounts').textContent,/a@example/);
+});
+
+test('account limits save explicitly and failed saves keep the draft and old limit',async()=>{
+  const p=panel();p.renderConcurrency(concurrencyFixture());
+  for(const value of ['-1','1.5','10001','junk']){concurrencyInput(p).value=value;await concurrencySave(p).events.click();assert.equal(p.evalActions.length,0);}
+  concurrencyInput(p).value='0';concurrencyInput(p).events.input();p.setEvalReply(concurrencyFixture({accounts:[{account:'safe-a',limit:0,in_flight:8}]}));await concurrencySave(p).events.click();
+  assert.deepEqual(JSON.parse(JSON.stringify(p.evalActions[0])),{action:'account-concurrency',payload:{account:'safe-a',limit:0,weekly_threshold:0}});assert.equal(concurrencyInput(p).value,'0');assert.match(p.get('concurrency-accounts').textContent,/8 \/ 不限/);
+  p.setEvalReply(null);concurrencyInput(p).value='2';concurrencyInput(p).events.input();await concurrencySave(p).events.click();assert.equal(concurrencyInput(p).value,'2');assert.match(p.get('concurrency-accounts').textContent,/8 \/ 不限/);
+  p.renderConcurrency(concurrencyFixture({storage_error:'concurrency_settings_unavailable'}));assert.equal(concurrencySave(p).disabled,true);
+});
+
+test('concurrency sign-out clears sensitive state and late save results do not restore it',async()=>{
+  const p=panel();p.renderConcurrency(concurrencyFixture());p.get('account-email-toggle').events.click();let finish;p.setEvalReply(new Promise(resolve=>finish=resolve));concurrencyInput(p).value='2';const pending=concurrencySave(p).events.click();p.logoutEval();finish(concurrencyFixture());await pending;
+  for(const lang of ['zh-CN','en','ru']){p.changeLanguage(lang);assert.equal(p.get('concurrency-accounts').children.length,0);assert.equal(p.get('concurrency-active').children.length,0);}
+  p.renderData({records:[{time:new Date().toISOString(),request_id:'running',model:'gpt-6-astra',concurrency_state:'running',concurrency_rerouted:true,original:[]}],turn_state_override:{probe:fixture()}});
+  p.changeLanguage('zh-CN');assert.match(p.get('rows').textContent,/执行中/);assert.match(p.get('rows').textContent,/请求已换号/);
+});
+
+test('an old concurrency save cannot overwrite a subsequent login with the same account',async()=>{
+  const p=panel();p.renderConcurrency(concurrencyFixture());let finish;p.setEvalReply(new Promise(resolve=>finish=resolve));concurrencyInput(p).value='9';const pending=concurrencySave(p).events.click();p.logoutEval();p.renderConcurrency(concurrencyFixture({accounts:[{account:'safe-a',limit:2,in_flight:0}]}));finish(concurrencyFixture({accounts:[{account:'safe-a',limit:9,in_flight:0}]}));await pending;assert.equal(concurrencyInput(p).value,'2');assert.equal(concurrencySave(p).disabled,false);assert.equal(p.get('concurrency-feedback').textContent,'');
+});
+
+test('concurrent saves for different credentials retain both limits when responses arrive out of order',async()=>{
+  const p=panel();p.renderConcurrency(concurrencyFixture());let finishA,finishB;
+  p.setEvalReply(new Promise(resolve=>finishA=resolve));concurrencyInput(p,0).value='3';const a=concurrencySave(p,0).events.click();
+  p.setEvalReply(new Promise(resolve=>finishB=resolve));concurrencyInput(p,1).value='6';const b=concurrencySave(p,1).events.click();
+  finishB(concurrencyFixture({accounts:[{account:'safe-a',limit:8,in_flight:0},{account:'safe-b',limit:6,in_flight:0}]}));await b;
+  finishA(concurrencyFixture({accounts:[{account:'safe-a',limit:3,in_flight:0},{account:'safe-b',limit:2,in_flight:0}]}));await a;
+  assert.equal(concurrencyInput(p,0).value,'3');assert.equal(concurrencyInput(p,1).value,'6');
+});
+
+test('evaluation visuals distinguish scoring from execution and request errors',()=>{
+  const p=panel(),base={scope:'synthetic-a',kind:'candy',status:'completed',done:2,graded:2,correct:2};
+  p.renderEval(evalFixture({results:[base,{...base,correct:1},{...base,status:'failed',graded:0,correct:0},{...base,graded:0,correct:0},{...base,kind:'modeltrace'}]}));
+  const badges=p.get('eval-results').children.map(row=>row.children[4].children[0]);
+  assert.deepEqual(badges.map(b=>b.getAttribute('data-tone')),['ok','danger','warn','warn','info']);
+  assert.match(badges[1].textContent,/含错误答案/);assert.match(badges[2].textContent,/请求失败/);
+  assert.doesNotMatch(badges[2].textContent,/答案错误/);assert.doesNotMatch(badges[4].textContent,/答案正确/);
+  assert.match(p.get('eval-results').children[2].textContent,/—/);assert.doesNotMatch(p.get('eval-results').children[2].textContent,/0%/);
+  for(const badge of badges){const icon=badge.children[0];assert.equal(icon.tagName,'svg');assert.equal(icon.getAttribute('aria-hidden'),'true');assert.equal(icon.getAttribute('focusable'),'false');assert.equal(icon.getAttribute('stroke'),'currentColor');}
+});
+
+test('sample badges keep distinct icons and translated text across all locales',()=>{
+  const p=panel();p.renderEval(evalFixture());
+  p.renderEvalDetail({id:'visual',samples:[{status:'correct'},{status:'incorrect'},{status:'error',error:'invalid_response_event'},{status:'cancelled'}]});
+  for(const lang of ['zh-CN','en','zh-TW','ru']){
+    p.changeLanguage(lang);const badges=p.get('eval-detail-body').children.slice(1).map(item=>item.children[0].children[1]);
+    assert.deepEqual(badges.map(b=>b.getAttribute('data-tone')),['ok','danger','warn','neutral']);
+    assert.equal(badges[0].textContent,p.translate('答案正确'));assert.equal(badges[2].textContent,p.translate('请求失败'));
+    assert.equal(new Set(badges.map(b=>b.children[0].children[1].getAttribute('d'))).size,4);
+    assert.equal(p.get('eval-legend').children.length,6);
+  }
+  const html=fs.readFileSync(__dirname+'/index.html','utf8');
+  assert.match(html,/<button id="eval-run"[^>]*><svg[^>]*aria-hidden="true"[^>]*>[\s\S]*?<span data-i18n="开始测试">/);
+  assert.doesNotMatch(html,/<button id="eval-run"[^>]*data-i18n=/);
+  assert.match(html,/@media\(forced-colors:active\)\{\.status-pill/);
+});
+
+test('ability tests require selected accounts and an explicit quota confirmation',async()=>{
+  const p=panel();p.renderEval(evalFixture());assert.equal(p.get('eval-run').disabled,true);
+  await p.get('eval-run').events.click();assert.equal(p.evalActions.length,0);
+  selectEval(p);assert.equal(p.get('eval-run').disabled,true);
+  p.get('eval-confirm').checked=true;p.get('eval-confirm').events.change();assert.equal(p.get('eval-run').disabled,false);
+  await p.get('eval-run').events.click();
+  assert.deepEqual(JSON.parse(JSON.stringify(p.evalActions)),[{action:'eval-run',payload:{accounts:['synthetic-a'],kind:'candy',model:'gpt-6-astra',runs:1,effort:'none',confirmed:true}}]);
+  assert.equal(p.get('eval-confirm').checked,false);
+});
+
+test('ability drafts and account selections survive refresh and locale changes',()=>{
+  const p=panel();p.renderEval(evalFixture());selectEval(p);p.get('eval-runs').value='7';p.get('eval-model').value='gpt-6.1-sol';p.get('eval-effort').value='xhigh';
+  for(const language of ['en','zh-TW','ru','zh-CN']){p.changeLanguage(language);p.renderEval(evalFixture());assert.equal(p.get('eval-runs').value,'7');assert.equal(p.get('eval-model').value,'gpt-6.1-sol');assert.equal(p.get('eval-effort').value,'xhigh');assert.equal(p.get('eval-accounts').children[0].children[0].checked,true);}
+  assert.match(p.get('eval-budget').textContent,/共 7 次请求/);
+  p.renderEval(evalFixture({accounts:[{scope:'synthetic-b'}]}));assert.equal(p.get('eval-accounts').children[0].children[0].checked,false);
+});
+
+test('ModelTrace fixes sampling parameters and request budget without overwriting candy drafts',async()=>{
+  const p=panel();p.renderEval(evalFixture());selectEval(p);p.get('eval-runs').value='10';p.get('eval-effort').value='xhigh';
+  p.get('eval-kind').value='modeltrace';p.get('eval-kind').events.change();assert.equal(p.get('eval-runs').disabled,true);assert.match(p.get('eval-budget').textContent,/共 3 次请求/);
+  p.get('eval-confirm').checked=true;p.get('eval-confirm').events.change();await p.get('eval-run').events.click();
+  assert.equal(p.evalActions[0].payload.runs,1);assert.equal(p.evalActions[0].payload.effort,'none');
+  p.get('eval-kind').value='candy';p.get('eval-kind').events.change();assert.equal(p.get('eval-runs').value,'10');assert.equal(p.get('eval-effort').value,'xhigh');
+});
+
+test('ability validation blocks invalid budgets, models, busy accounts and corrupt storage',()=>{
+  const p=panel();p.renderEval(evalFixture());selectEval(p);p.get('eval-confirm').checked=true;
+  for(const value of ['0','11','1.5','not-a-number']){p.get('eval-runs').value=value;p.get('eval-runs').events.input();assert.equal(p.get('eval-run').disabled,true);}
+  p.get('eval-runs').value='1';p.get('eval-model').value='<script>';p.get('eval-model').events.input();assert.equal(p.get('eval-run').disabled,true);
+  p.get('eval-model').value='gpt-6-astra';p.renderEval(evalFixture({jobs:[{id:'j',scope:'synthetic-a',phase:'running',kind:'candy',done:0,total:1}]}));assert.equal(p.get('eval-run').disabled,true);
+  p.renderEval(evalFixture({storage_error:'eval_storage_invalid'}));assert.equal(p.get('eval-run').disabled,true);assert.match(p.get('eval-feedback').textContent,/不可写/);
+});
+
+test('manual ability controls do not resume paused health probes',async()=>{
+  const p=panel();p.renderData({records:[],turn_state_override:{probe:fixture({halted:true,paused:['gpt-6-astra']})}});
+  p.renderEval(evalFixture());selectEval(p);p.get('eval-effort').value='medium';
+  p.get('eval-confirm').checked=true;p.get('eval-confirm').events.change();
+  assert.equal(p.get('eval-run').disabled,false);
+  await p.get('eval-run').events.click();
+  assert.equal(p.evalActions[0].action,'eval-run');assert.equal(p.evalActions[0].payload.effort,'medium');
+  assert.equal(p.actions.length,0);
+  const html=fs.readFileSync(__dirname+'/index.html','utf8');
+  assert.match(html,/<option value="medium">medium<\/option>/);
+  const notices=p.staticNodes.filter(node=>node.getAttribute('data-i18n')?.startsWith('糖果题沿用')||node.getAttribute('data-i18n')?.startsWith('CPA 当前账号路由'));
+  for(const lang of ['zh-CN','en','zh-TW','ru']){
+    p.changeLanguage(lang);assert.match(notices.map(node=>node.textContent).join(' '),/21/);
+    assert.doesNotMatch(notices.map(node=>node.textContent).join(' '),/29|FINAL_ANSWER/);
+  }
+});
+
+test('ability errors distinguish request, parameters, health pause, storage and busy accounts in every locale',()=>{
+  const p=panel(),codes=['invalid_eval_request','invalid_eval_parameters','model_paused','eval_storage_write_failed','engine_unavailable','account_inventory_unavailable','account_unavailable_or_changed','account_eval_busy'];
+  for(const lang of ['zh-CN','en','zh-TW','ru']){
+    p.changeLanguage(lang);const messages=codes.map(code=>p.evalError(code));
+    assert.equal(new Set(messages).size,codes.length);
+    if(lang!=='zh-CN')for(const message of messages)assert.doesNotMatch(message,/测试|账号|暂停|存储/);
+  }
+  p.changeLanguage('zh-CN');assert.match(p.evalError('invalid_eval_parameters'),/次数和推理强度/);
+  assert.doesNotMatch(p.evalError('invalid_eval_request'),/暂停/);
+  assert.match(p.evalError('model_paused'),/更新插件/);
+});
+
+test('legacy candy scores remain labelled and separate from the corrected benchmark',()=>{
+  const p=panel(),old={id:'old',scope:'synthetic-a',kind:'candy',revision:'candy-shapes-v2-final-29',status:'completed',correct:1,graded:1};
+  const current={...old,id:'new',revision:'candy-shapes-v3-original-21'};
+  p.renderEval(evalFixture({results:[old,current]}));
+  p.renderEvalDetail({...old,samples:[{status:'correct',text:'FINAL_ANSWER=29'}]});
+  for(const lang of ['zh-CN','en','zh-TW','ru']){
+    p.changeLanguage(lang);assert.match(p.get('eval-results').children[0].textContent,/29/);
+    assert.doesNotMatch(p.get('eval-results').children[1].textContent,/29/);
+    assert.match(p.get('eval-detail-body').children[1].textContent,/29/);
+  }
+  p.renderEvalDetail({...current,samples:[{status:'correct',text:'21'}]});
+  assert.doesNotMatch(p.get('eval-detail-body').textContent,/29/);
+});
+
+test('evaluation requests share the request table with timezone results but no health verdicts',()=>{
+  const p=panel(),record={time:new Date().toISOString(),request_id:'eval-safe-1',request_kind:'evaluation',evaluation_id:'job-safe',evaluation_kind:'candy',evaluation_sample:1,model:'gpt-6-astra',upstream_model:'gpt-5.6-luna',account:'safe',account_email:'a@example.invalid',request_outcome:'succeeded',timing_source:'evaluation-callback',request_latency_ms:2000,first_output_latency_ms:500,response_tokens_output:20,response_tokens_reasoning:5,response_tokens_input:12,response_tokens_complete:true,output_tps:10,target:'America/Los_Angeles',original:['UTC'],action:'replaced'};
+  const data={records:[record],total:1,turn_state_override:{probe:fixture()}};
+  p.renderData(data);
+  for(const lang of ['zh-CN','en','zh-TW','ru']){
+    p.changeLanguage(lang);const row=p.get('rows').children[0];
+    assert.equal(row.children.length,8);assert.match(row.textContent,/gpt-5\.6-luna/);assert.match(row.textContent,/10\.0 t\/s/);
+    assert.doesNotMatch(row.textContent,/a@example|模型不一致|降智已拦截|undefined/);
+    assert.match(row.title,/eval-safe-1/);assert.match(row.children[7].children[1].title,lang==='zh-CN'?/不含排队/:lang==='en'?/excluding queue/:lang==='zh-TW'?/不含排隊/:/без ожидания/);
+  }
+  p.changeLanguage('zh-CN');assert.match(p.get('rows').textContent,/糖果测试/);assert.match(p.get('rows').textContent,/UTC/);assert.match(p.get('rows').textContent,/America\/Los_Angeles/);assert.match(p.get('rows').textContent,/已替换/);assert.doesNotMatch(p.get('rows').textContent,/不做时区转换/);
+  p.get('account-email-toggle').events.click();assert.match(p.get('rows').textContent,/a@example.invalid/);
+  p.renderData({...data,records:[{...record,evaluation_kind:'modeltrace',request_outcome:'failed',evaluation_error:'invalid_response_event',response_tokens_complete:false}]});
+  assert.match(p.get('rows').textContent,/ModelTrace|响应流解析失败|invalid_response_event|请求已失败/);
+  assert.doesNotMatch(p.get('rows').textContent,/10\.0 t\/s/);
+});
+
+test('evaluation timezone history uses measured target rather than current settings',()=>{
+  const p=panel(),base={time:new Date().toISOString(),request_kind:'evaluation',evaluation_kind:'modeltrace',model:'gpt-6-astra'};
+  const data={target:'Asia/Tokyo',records:[{...base,target:'America/Los_Angeles',original:[],action:'inserted'},{...base}],turn_state_override:{probe:fixture()}};
+  p.renderData(data);
+  for(const lang of ['zh-CN','en','zh-TW','ru']){
+    p.changeLanguage(lang);const rows=p.get('rows').children;
+    assert.equal(rows[0].children[4].textContent,'America/Los_Angeles');assert.notEqual(rows[0].children[4].textContent,'Asia/Tokyo');
+    assert.equal(rows[1].children[4].textContent,'—');assert.ok(rows[1].children[3].textContent.includes(p.translate('旧版评测：未记录时区')));
+  }
+  p.changeLanguage('zh-CN');assert.match(p.get('rows').children[0].textContent,/已补入/);
+});
+
+test('evaluation parsing failures are labelled as errors rather than model answers',()=>{
+  const p=panel();p.renderEval(evalFixture());
+  p.renderEvalDetail({id:'failed',kind:'candy',samples:[{status:'error',error:'invalid_response_event',prompt:'synthetic prompt',request_id:'eval-fixture-1'}]});
+  for(const lang of ['zh-CN','en','zh-TW','ru']){
+    p.changeLanguage(lang);const sample=p.get('eval-detail-body').children[1];
+    assert.match(sample.textContent,/invalid_response_event|eval-fixture-1/);
+    assert.ok(sample.children.some(n=>n.textContent===p.translate('错误')));
+    assert.ok(!sample.children.some(n=>n.textContent===p.translate('回答')));
+  }
+  p.changeLanguage('zh-CN');assert.match(p.get('eval-detail-body').textContent,/不是模型答错/);
+});
+
+test('ability histories keep email private and render untrusted text literally',()=>{
+  const p=panel();p.renderEval(evalFixture({results:[{id:'r',scope:'synthetic-a',kind:'modeltrace',model:'<img src=x>',status:'partial',attribution:{prediction:'<script>',probability:.6,used_outputs:2}}]}));
+  assert.doesNotMatch(p.get('eval-results').textContent,/a@example/);assert.match(p.get('eval-results').textContent,/<script>/);assert.match(p.get('eval-results').textContent,/有效样本 2\/3/);
+  p.get('account-email-toggle').events.click();assert.match(p.get('eval-results').textContent,/a@example.invalid/);
+  p.get('account-email-toggle').events.click();assert.doesNotMatch(p.get('eval-results').textContent,/a@example/);
+});
+
+test('ability detail samples stay open across translation and display real usage',()=>{
+  const p=panel();p.renderEval(evalFixture());p.renderEvalDetail({id:'d',revision:'synthetic-revision',samples:[{status:'correct',prompt:'<prompt>',text:'FINAL_ANSWER=29',usage:{input_tokens:12,output_tokens:5,reasoning_tokens:2}}]});
+  const sample=p.get('eval-detail-body').children[1];sample.open=true;sample.events.toggle();p.changeLanguage('en');
+  assert.equal(p.get('eval-detail-body').children[1].open,true);assert.match(p.get('eval-detail-body').textContent,/input 12 \/ output 5 \/ reasoning 2/);assert.match(p.get('eval-detail-body').textContent,/<prompt>/);
+  p.get('eval-detail-close').events.click();assert.equal(p.get('eval-detail').classList.contains('hidden'),true);
+});
+
+test('sign-out removes ability records and details without later locale resurrection',()=>{
+  const p=panel();p.renderEval(evalFixture({results:[{scope:'synthetic-a',kind:'candy',model:'PRIVATE_HISTORY_CANARY',status:'completed'}]}));
+  p.renderEvalDetail({id:'secret-detail',samples:[{text:'PRIVATE_ANSWER_CANARY',status:'correct'}]});
+  p.logoutEval();p.changeLanguage('ru');assert.equal(p.get('eval-results').children.length,0);assert.equal(p.get('eval-detail-body').children.length,0);assert.equal(p.get('eval-run').disabled,true);
+});
+
+test('native ability API pins new namespace and checks the session after JSON parsing',async()=>{
+  const html=fs.readFileSync(__dirname+'/index.html','utf8');
+  const source=html.slice(html.indexOf('  async function evalRequest('),html.indexOf('  async function refreshEval('));
+  let key='synthetic-key',logouts=0;const calls=[];
+  const c=vm.createContext({prefix:'/cpa',rejectedKey:'',readManagementKey:()=>key,requireLogin:()=>logouts++,fetch:async(url,options)=>{calls.push({url,options});return {ok:true,status:202,json:async()=>({started:1})};}});
+  vm.runInContext(source+'\nglobalThis.request=evalRequest;',c);
+  const result=await c.request('eval-run',{confirmed:true});assert.equal(result.started,1);assert.equal(calls[0].url,'/cpa/v0/management/oai-adversarial-plugin/eval-run');assert.equal(calls[0].options.headers.Authorization,'Bearer synthetic-key');assert.equal(calls[0].options.method,'POST');
+  c.fetch=async()=>({ok:true,status:200,json:async()=>{key='changed-session';return {private_data:'should-not-render'};}});
+  assert.equal(await c.request('eval'),null);assert.equal(logouts,1);
+});
+
+test('native ability API does not call the host without login and clears rejected sessions',async()=>{
+  const html=fs.readFileSync(__dirname+'/index.html','utf8');
+  const source=html.slice(html.indexOf('  async function evalRequest('),html.indexOf('  async function refreshEval('));
+  let key='',calls=0,logouts=0;
+  const c=vm.createContext({prefix:'',rejectedKey:'',readManagementKey:()=>key,requireLogin:()=>logouts++,fetch:async()=>{calls++;return {status:401};}});
+  vm.runInContext(source+'\nglobalThis.request=evalRequest;',c);
+  assert.equal(await c.request('eval'),null);assert.equal(calls,0);
+  key='synthetic-key';assert.equal(await c.request('eval'),null);assert.equal(c.rejectedKey,key);assert.equal(logouts,2);
+});
 
 function fixture(overrides={}) {
   return {enabled:true,running:false,halted:false,prefetch_minutes:3,paused:[],active_models:[],queue_models:[],
     values:[{model:'gpt-6-astra',valid:true,value_length:292,source:'probe',remaining_seconds:180,
       issued_at:new Date(Date.now()-52*60000).toISOString(),expires_at:new Date(Date.now()+3*60000).toISOString()}],...overrides};
 }
+
+test('renamed panel links keep the CPA reverse-proxy prefix',()=>{
+  for(const prefix of ['', '/cpa']){
+    const p=panel({pathname:prefix+'/v0/resource/plugins/oai-adversarial-plugin/status'});
+    assert.equal(p.get('management-login').href,prefix+'/management.html#/plugin-pages/oai-adversarial-plugin/0');
+  }
+});
+
+test('renamed panel posts to the new API namespace',async()=>{
+  const html=fs.readFileSync(__dirname+'/index.html','utf8');
+  const source=html.slice(html.indexOf('  async function probeControl('),html.indexOf('  function remainingText('));
+  for(const prefix of ['', '/cpa']){
+    const calls=[];
+    const c=vm.createContext({prefix,controlRevision:0,readManagementKey:()=> 'synthetic-key',
+      fetch:async(url,options)=>{calls.push({url,options});return {ok:true,status:200};}});
+    vm.runInContext(source+'\nglobalThis.control=probeControl;',c);
+    assert.equal(await c.control({action:'rename-test-unknown'}),true);
+    assert.equal(calls[0].url,prefix+'/v0/management/oai-adversarial-plugin/probe-control');
+    assert.equal(calls[0].options.method,'POST');
+    assert.equal(calls[0].options.headers.Authorization,'Bearer synthetic-key');
+    assert.deepEqual(JSON.parse(calls[0].options.body),{action:'rename-test-unknown'});
+  }
+});
 
 test('full stop and zero prefetch window do not advertise automatic takeover',()=>{
   const p=panel();p.render(fixture({halted:true}));
@@ -110,6 +405,44 @@ test('business evidence takes precedence and rejection control is restored after
   assert.match(p.get('probe-values').textContent,/业务确认/);
   assert.doesNotMatch(p.get('probe-values').textContent,/上次探测/);
   assert.match(p.get('probe-values').textContent,/剩余 3m 00s/);
+});
+
+test('turn-state injection control reflects state and sends the dashboard action',async()=>{
+const p=panel();
+p.render(fixture());
+const button=p.get('turn-state-inject-toggle');
+assert.equal(button.disabled,false);
+assert.equal(button.className.includes('on'),true);
+assert.match(button.textContent,/注入 X-Codex-Turn-State：已开启/);
+p.render(fixture({turn_state_inject_enabled:false}));
+assert.equal(button.className.includes('on'),false);
+assert.match(button.textContent,/注入 X-Codex-Turn-State：已关闭/);
+p.setResult(true);
+await button.events.click();
+assert.deepEqual(JSON.parse(JSON.stringify(p.actions)),[{action:'turn-state-inject',enabled:true}]);
+});
+
+test('suspected degraded tier badge and token usage follow the accepted lengths policy',()=>{
+const p=panel();
+const record={time:new Date().toISOString(),model:'gpt-6-astra',upstream_model:'gpt-5.6-luna',
+  model_checked:true,model_mismatch:true,detection_exempt:false,original:[],target:'America/Los_Angeles',
+  action:'unchanged',turn_state_override:'applied',turn_state_original_length:0,turn_state_injected_length:292,
+  turn_state_response_original_length:312,turn_state_response_injected_length:292,turn_state_response_status:'invalid-length',
+  response_tokens_input:120,response_tokens_output:45,response_tokens_reasoning:30};
+p.renderData({total:1,replaced:0,inserted:0,records:[record],turn_state_override:{enabled:true,probe:fixture()}});
+let row=p.get('rows').children[0];
+assert.match(row.textContent,/疑似降级档（312 字节）/);
+assert.match(row.textContent,/Token 输入 120 · 输出 45 · 推理 30/);
+// A response length inside the policy renders no degraded-tier badge.
+record.turn_state_response_original_length=292;record.turn_state_response_status='updated-active';
+p.renderData({total:1,replaced:0,inserted:0,records:[record],turn_state_override:{enabled:true,probe:fixture()}});
+row=p.get('rows').children[0];
+assert.doesNotMatch(row.textContent,/疑似降级档/);
+// Missing token fields stay hidden instead of faking zeros.
+record.response_tokens_input=null;record.response_tokens_output=null;record.response_tokens_reasoning=null;
+p.renderData({total:1,replaced:0,inserted:0,records:[record],turn_state_override:{enabled:true,probe:fixture()}});
+row=p.get('rows').children[0];
+assert.doesNotMatch(row.textContent,/Token 输入/);
 });
 
 test('probe failure preserves healthy TTL and expired rows have no stray class text',()=>{
@@ -479,7 +812,55 @@ test('recent requests display the newest 50 without truncating source data or st
     }
   }
   p.renderData({...data,records:[]});
-  assert.equal(p.get('rows').children[0].children[0].colSpan,7);
+  assert.equal(p.get('rows').children[0].children[0].colSpan,8);
+});
+
+function performanceFixture(overrides={}){
+  return {time:'2026-10-03T00:00:00Z',model:'gpt-6-astra',original:[],request_outcome:'succeeded',response_tokens_complete:true,
+    response_tokens_output:1420,response_tokens_reasoning:1034,request_latency_ms:75120,first_output_latency_ms:63460,output_tps:1420*1000/75120,...overrides};
+}
+function performancePanel(record){const p=panel();p.renderData({total:1,records:[record],turn_state_override:{probe:fixture()}});return p;}
+
+test('request performance shows full-output TPS and names first-output versus total latency',()=>{
+  const p=performancePanel(performanceFixture()),column=p.get('rows').children[0].children[7];
+  assert.equal(column.children[0].textContent,'18.9 t/s');
+  assert.equal(column.children[1].textContent,'首输出 63.46 s · 总耗时 75.12 s');
+  assert.match(column.children[0].title,/含推理.*总耗时/);assert.match(column.children[1].title,/不是宿主 TTFT/);
+  assert.doesNotMatch(column.className,/warn|danger/);
+});
+
+test('request performance never fabricates old unknown pending or nonstream first latency',()=>{
+  for(const record of [{time:'2026-10-03T00:00:00Z',model:'legacy',original:[]},performanceFixture({request_outcome:'',output_tps:undefined,request_latency_ms:undefined,first_output_latency_ms:undefined}),performanceFixture({response_tokens_complete:false,output_tps:undefined})]){
+    const column=performancePanel(record).get('rows').children[0].children[7];assert.equal(column.children[0].textContent,'—');
+  }
+  const column=performancePanel(performanceFixture({first_output_latency_ms:undefined})).get('rows').children[0].children[7];
+  assert.equal(column.children[1].textContent,'首输出 — · 总耗时 75.12 s');
+});
+
+test('request performance preserves measured zero and rejects invalid numbers',()=>{
+  let column=performancePanel(performanceFixture({output_tps:0,request_latency_ms:.5,first_output_latency_ms:0})).get('rows').children[0].children[7];
+  assert.equal(column.children[0].textContent,'0.0 t/s');assert.equal(column.children[1].textContent,'首输出 0.00 ms · 总耗时 0.50 ms');
+  for(const invalid of [-1,NaN,Infinity,'12',null,undefined]){
+    column=performancePanel(performanceFixture({output_tps:invalid,request_latency_ms:invalid,first_output_latency_ms:invalid})).get('rows').children[0].children[7];
+    assert.equal(column.children[0].textContent,'—');assert.equal(column.children[1].textContent,'首输出 — · 总耗时 —');
+  }
+});
+
+test('request performance localizes failure without displaying raw error text',()=>{
+  for(const [outcome,label] of [['failed','请求已失败'],['rejected','请求已拒绝'],['canceled','请求已取消']]){
+    const p=performancePanel(performanceFixture({request_outcome:outcome,error:'PRIVATE_RAW_ERROR'}));
+    const column=p.get('rows').children[0].children[7];assert.equal(column.children[0].textContent,'—');assert.equal(column.children[2].textContent,label);assert.doesNotMatch(column.textContent,/PRIVATE_RAW_ERROR/);
+    for(const language of ['en','zh-TW','ru']){p.changeLanguage(language);const value=p.get('rows').children[0].children[7].children[2].textContent;assert.equal(value,p.translate(label));}
+  }
+});
+
+test('request performance labels and tooltips follow all CPA locales without changing numeric values',()=>{
+  const p=performancePanel(performanceFixture());
+  for(const language of ['en','zh-TW','ru','zh-CN']){
+    p.changeLanguage(language);const column=p.get('rows').children[0].children[7];assert.equal(column.children[0].textContent,'18.9 t/s');
+    assert.equal(column.children[1].textContent,p.translate('首输出 {first} · 总耗时 {total}',{first:'63.46 s',total:'75.12 s'}));
+    assert.equal(column.children[1].title,p.translate('首输出延迟由插件实际收到的文本、推理或工具参数增量计时；不是宿主 TTFT。总耗时来自 CPA 完成回调起止时间，包含路由和重试；缺失数据不补造。'));
+  }
 });
 
 test('history panels preserve independent open states through refresh and all locales',()=>{

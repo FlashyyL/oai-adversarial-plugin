@@ -22,6 +22,10 @@ go.work.sum
 **/runtime-settings.json
 **/runtime-settings.json.*
 **/.runtime-settings-*
+**/eval-results.json
+**/.eval-results-*
+**/account-concurrency.json
+**/.account-concurrency-*
 **/mirror-data/
 **/seeds.json
 **/auths/

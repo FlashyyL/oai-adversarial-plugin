@@ -8,7 +8,7 @@ key = os.environ.get('CPA_MANAGEMENT_KEY')
 if not key:
     raise SystemExit('Set CPA_MANAGEMENT_KEY in the environment before running this script.')
 
-request = urllib.request.Request('http://127.0.0.1:8317/v0/management/timezone-override/requests',
+request = urllib.request.Request('http://127.0.0.1:8317/v0/management/oai-adversarial-plugin/requests',
                                  headers={'Authorization': 'Bearer ' + key})
 with urllib.request.urlopen(request, timeout=8) as response:
     payload = json.loads(response.read())

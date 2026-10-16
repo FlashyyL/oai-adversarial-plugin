@@ -41,7 +41,7 @@ const (
 
 // turnStateOverrideConfig is the plugin-config block that drives the
 // request-side X-Codex-Turn-State rewrite. It is read from the
-// plugins.configs.timezone-override subtree (key "turn-state-override"):
+// plugins.configs.oai-adversarial-plugin subtree (key "turn-state-override"):
 //
 //	turn-state-override:
 //	  enabled: true
@@ -182,6 +182,9 @@ func turnStateOverrideMatches(config turnStateOverrideConfig, models ...string) 
 // configured value; the baseline keeps serving even while the probe track is
 // idle - it is cached protection, not probing.
 func applyTurnStateOverride(model, requestedModel string, headers http.Header) (http.Header, string) {
+	if !probeTrack.turnStateInjectEnabled() {
+		return nil, ""
+	}
 	if !degradationDetectionEnabled(model, requestedModel) {
 		return nil, ""
 	}
@@ -251,6 +254,9 @@ func isHealthyTurnState(model, observedModel, state string) bool {
 // repair applies (healthy value, no state, or no baseline yet), in which case
 // the response must pass through untouched.
 func repairTurnStateHeader(model, requestedModel, observedModel, state string) http.Header {
+	if !probeTrack.turnStateInjectEnabled() {
+		return nil
+	}
 	if !degradationDetectionEnabled(model, requestedModel) {
 		return nil
 	}
@@ -324,12 +330,31 @@ func interceptNonStreamingResponse(raw []byte) (responseInterceptOutput, error) 
 		history.observeModel(req.RequestID, "", model)
 	}
 	scope := responseMetadataAccount(req.RequestID, req.Metadata)
+	observeRequestWeekly(req.RequestID, scope, req.ResponseHeaders)
 	original := history.observeResponseBusiness(req.RequestID, scope, state, upstream)
 	history.observeTurnState(req.RequestID, original, "response")
+	if tokens, complete := performanceUsageTokens(req.Body, req.Stream); len(tokens) > 0 {
+		history.observeResponseTokens(req.RequestID, scope, tokens, complete && req.StatusCode >= 200 && req.StatusCode < 300)
+		diagnosticsEvent("tokens", map[string]any{
+			"id":    digestShort(req.RequestID),
+			"model": req.Model,
+			"usage": tokens,
+		})
+	}
 	out := responseInterceptOutput{}
 	if headers := repairScopedHeader(scope, req.Model, req.RequestedModel, upstream, state); headers != nil {
 		out.Headers = headers
 	}
+	diagnosticsEvent("response", map[string]any{
+		"id":           digestShort(req.RequestID),
+		"model":        req.Model,
+		"upstream":     upstream,
+		"state_len":    len(state),
+		"state_dig":    digestShort(state),
+		"state_re":     digestShort(out.Headers.Get(turnStateHeader)),
+		"resp_headers": diagnosticsHeaderNames(req.ResponseHeaders),
+		"body":         bodyShape(req.Body),
+	})
 	history.observeResponseTicket(req.RequestID, scope, state, out.Headers)
 	return out, nil
 }
@@ -339,6 +364,7 @@ func interceptNonStreamingResponse(raw []byte) (responseInterceptOutput, error) 
 // payload; payload chunks carry one upstream event each. Learning waits for
 // a reported model while retaining the original, unrepaired header.
 func interceptStreamChunk(raw []byte) (responseInterceptOutput, error) {
+	observedAt := time.Now()
 	var req streamChunkInterceptRequest
 	if err := json.Unmarshal(raw, &req); err != nil {
 		return responseInterceptOutput{}, fmt.Errorf("decode stream chunk interception: %w", err)
@@ -352,11 +378,46 @@ func interceptStreamChunk(raw []byte) (responseInterceptOutput, error) {
 	}
 	state := headerValue(req.ResponseHeaders, turnStateHeader)
 	scope := responseMetadataAccount(req.RequestID, req.Metadata)
+	if req.ChunkIndex == streamChunkHeaderInitIndex { observeRequestWeekly(req.RequestID, scope, req.ResponseHeaders) }
+	if req.ChunkIndex >= 0 {
+		history.observeFirstOutput(req.RequestID, scope, req.Metadata, req.Body, observedAt)
+	}
 	original := history.observeResponseBusiness(req.RequestID, scope, state, upstream)
 	history.observeTurnState(req.RequestID, original, "stream")
+	tokens, completeUsage := performanceUsageTokens(req.Body, true)
+	events := diagnosticsEventTypes(req.Body, 4)
+	completedFrame := false
+	for _, event := range events {
+		if event == "response.completed" {
+			completedFrame = true
+			break
+		}
+	}
+	if len(tokens) > 0 {
+		history.observeResponseTokens(req.RequestID, scope, tokens, completeUsage)
+		diagnosticsEvent("tokens", map[string]any{
+			"id":    digestShort(req.RequestID),
+			"model": req.Model,
+			"usage": tokens,
+			"index": req.ChunkIndex,
+		})
+	}
 	out := responseInterceptOutput{}
 	if headers := repairScopedHeader(scope, req.Model, req.RequestedModel, upstream, state); headers != nil {
 		out.Headers = headers
+	}
+	if req.ChunkIndex == streamChunkHeaderInitIndex || (req.ChunkIndex >= 0 && req.ChunkIndex <= 2) || len(tokens) > 0 || completedFrame {
+		diagnosticsEvent("chunk", map[string]any{
+			"id":           digestShort(req.RequestID),
+			"model":        req.Model,
+			"upstream":     upstream,
+			"index":        req.ChunkIndex,
+			"state_len":    len(state),
+			"state_dig":    digestShort(state),
+			"state_re":     digestShort(out.Headers.Get(turnStateHeader)),
+			"events":       events,
+			"resp_headers": diagnosticsHeaderNames(req.ResponseHeaders),
+		})
 	}
 	history.observeResponseTicket(req.RequestID, scope, state, out.Headers)
 	return out, nil
@@ -395,6 +456,98 @@ func (s *auditState) observeResponseBusiness(requestID, scope, value, upstream s
 	return ""
 }
 
+// observeResponseTokens records numeric token accounting from a response
+// payload. Numbers only; no text is retained. Later events supersede earlier
+// ones within the same request attempt.
+func (s *auditState) observeResponseTokens(requestID, scope string, tokens map[string]int, complete bool) {
+	if requestID == "" || len(tokens) == 0 {
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i := range s.records {
+		r := &s.records[i]
+		if r.RequestID != requestID || r.AccountScope != scope {
+			continue
+		}
+		r.ResponseTokensComplete = complete && validPerformanceTokens(tokens)
+		if value, ok := tokens["input"]; ok {
+			v := value
+			r.ResponseTokensInput = &v
+		}
+		if value, ok := tokens["output"]; ok {
+			v := value
+			r.ResponseTokensOutput = &v
+		}
+		if value, ok := tokens["reasoning"]; ok {
+			v := value
+			r.ResponseTokensReasoning = &v
+		}
+		if value, ok := tokens["total"]; ok {
+			v := value
+			r.ResponseTokensTotal = &v
+		}
+		markStateDirty()
+		return
+	}
+}
+
+// probeUsageTokens extracts input/output/reasoning/total token counts from an
+// SSE payload. The response.completed event carries a "usage" object; a
+// numeric details block may nest reasoning tokens. Values are lengths only -
+// message text is never retained.
+func probeUsageTokens(payload []byte) map[string]int {
+	if len(payload) == 0 || len(payload) > maxModelProbeSize || !bytes.Contains(payload, []byte(`"usage"`)) {
+		return nil
+	}
+	for _, candidate := range jsonCandidates(payload) {
+		type usageBlock struct {
+			InputTokens  *int `json:"input_tokens"`
+			OutputTokens *int `json:"output_tokens"`
+			TotalTokens  *int `json:"total_tokens"`
+			Details      struct {
+				ReasoningTokens *int `json:"reasoning_tokens"`
+			} `json:"output_tokens_details"`
+			InputDetails struct {
+				ReasoningTokens *int `json:"reasoning_tokens"`
+			} `json:"input_tokens_details"`
+		}
+		var probe struct {
+			Usage    usageBlock `json:"usage"`
+			Response struct {
+				Usage usageBlock `json:"usage"`
+			} `json:"response"`
+		}
+		if err := json.Unmarshal(candidate, &probe); err != nil {
+			continue
+		}
+		usage := probe.Usage
+		if usage.InputTokens == nil && usage.OutputTokens == nil && usage.TotalTokens == nil && usage.Details.ReasoningTokens == nil {
+			usage = probe.Response.Usage
+		}
+		if usage.InputTokens == nil && usage.OutputTokens == nil && usage.TotalTokens == nil && usage.Details.ReasoningTokens == nil {
+			continue
+		}
+		tokens := map[string]int{}
+		if usage.InputTokens != nil {
+			tokens["input"] = *usage.InputTokens
+		}
+		if usage.OutputTokens != nil {
+			tokens["output"] = *usage.OutputTokens
+		}
+		if usage.TotalTokens != nil {
+			tokens["total"] = *usage.TotalTokens
+		}
+		if usage.Details.ReasoningTokens != nil {
+			tokens["reasoning"] = *usage.Details.ReasoningTokens
+		} else if usage.InputDetails.ReasoningTokens != nil {
+			tokens["reasoning"] = *usage.InputDetails.ReasoningTokens
+		}
+		return tokens
+	}
+	return nil
+}
+
 // Record the response header decision independently of the request injection.
 // Later stream chunks may repeat already-repaired headers; keep the actual
 // replacement evidence until the next request attempt resets it.
@@ -425,11 +578,17 @@ func (s *auditState) observeResponseTicket(requestID, scope, value string, repla
 // Desktop /v1/responses path). The observer interface is read-only, so this
 // only records the upstream model.
 func observeWebSocketEvent(raw []byte) (struct{}, error) {
+	observedAt := time.Now()
 	var event webSocketResponseEvent
 	if err := json.Unmarshal(raw, &event); err != nil {
 		return struct{}{}, fmt.Errorf("decode websocket event: %w", err)
 	}
 	scope := responseAccount(event.RequestID, event.AuthID)
+	timingMetadata := map[string]any{"selected_auth_id": event.AuthID}
+	history.observeFirstOutput(event.RequestID, scope, timingMetadata, event.Payload, observedAt)
+	if tokens, complete := performanceUsageTokens(event.Payload, true); len(tokens) > 0 {
+		history.observeResponseTokens(event.RequestID, scope, tokens, complete)
+	}
 	history.noteResponseHeadersUnavailable(event.RequestID, scope)
 	if model, ok := probeUpstreamModel(event.Payload); ok {
 		history.observeModel(event.RequestID, event.TraceID, model)

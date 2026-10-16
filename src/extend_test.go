@@ -358,8 +358,11 @@ func TestSuspectTracking(t *testing.T) {
 }
 
 // TestProbeControlEndpoint drives the POST control payloads the dashboard
-// sends: pause, resume and the reject switch.
+// sends: pause, resume, the reject switch, the injection switch and the
+// diagnostics journal switch.
 func TestProbeControlEndpoint(t *testing.T) {
+	t.Setenv("LKS_TZ_STATE_FILE", filepath.Join(t.TempDir(), "state.json"))
+	t.Cleanup(func() { setDiagnosticsEnabled(false) })
 	probeTrack = &probeEngine{values: map[string]stateEntry{}, failures: map[string]probeFailure{},
 		paused: map[string]bool{}, probing: map[string]bool{}}
 	response, err := probeControl([]byte(`{"model":"gpt-5.6-sol","action":"pause"}`))
@@ -382,6 +385,42 @@ func TestProbeControlEndpoint(t *testing.T) {
 	}
 	if !probeTrack.rejectDegradedEnabled() {
 		t.Fatal("switch must be on")
+	}
+	response, err = probeControl([]byte(`{"action":"turn-state-inject","enabled":false}`))
+	if err != nil || response.StatusCode != 200 {
+		t.Fatalf("turn-state-inject failed: %+v %v", response, err)
+	}
+	if probeTrack.turnStateInjectEnabled() {
+		t.Fatal("injection switch must be off")
+	}
+	response, err = probeControl([]byte(`{"action":"turn-state-inject","enabled":true}`))
+	if err != nil || response.StatusCode != 200 {
+		t.Fatalf("turn-state-inject restore failed: %+v %v", response, err)
+	}
+	if !probeTrack.turnStateInjectEnabled() {
+		t.Fatal("injection switch must be back on")
+	}
+	response, _ = probeControl([]byte(`{"action":"turn-state-inject"}`))
+	if response.StatusCode != 400 {
+		t.Fatalf("turn-state-inject without enabled must be rejected: %+v", response)
+	}
+	response, err = probeControl([]byte(`{"action":"diagnostics-journal","enabled":true}`))
+	if err != nil || response.StatusCode != 200 {
+		t.Fatalf("diagnostics-journal failed: %+v %v", response, err)
+	}
+	if !probeTrack.diagnosticsJournalEnabled() {
+		t.Fatal("diagnostics journal switch must be on")
+	}
+	response, err = probeControl([]byte(`{"action":"diagnostics-journal","enabled":false}`))
+	if err != nil || response.StatusCode != 200 {
+		t.Fatalf("diagnostics-journal off failed: %+v %v", response, err)
+	}
+	if probeTrack.diagnosticsJournalEnabled() {
+		t.Fatal("diagnostics journal switch must be off")
+	}
+	response, _ = probeControl([]byte(`{"action":"diagnostics-journal"}`))
+	if response.StatusCode != 400 {
+		t.Fatalf("diagnostics-journal without enabled must be rejected: %+v", response)
 	}
 	response, _ = probeControl([]byte(`{"action":"bogus"}`))
 	if response.StatusCode != 400 {
@@ -456,6 +495,7 @@ func TestPersistenceRoundTrip(t *testing.T) {
 	cfg := parseProbeConfig(probeConfigYAML{})
 	probeTrack.cfg.Config = cfg
 	probeTrack.setRejectDegraded(false)
+	probeTrack.setTurnStateInjectEnabled(false)
 	probeTrack.setModelPaused("gpt-5.6-terra", true)
 	probeTrack.storeValue("gpt-6-astra", "sample-state-0001", "probe", "direct", cfg)
 	probeTrack.noteError("state length 312 != 332 (suspected degraded)")
@@ -480,6 +520,11 @@ func TestPersistenceRoundTrip(t *testing.T) {
 	if probeTrack.rejectDegradedEnabled() {
 		t.Fatal("switch must restore the saved off state")
 	}
+	if probeTrack.turnStateInjectEnabled() {
+		t.Fatal("injection switch must restore the saved off state")
+	}
+	// Restore the process-wide default so later tests keep the historic behavior.
+	probeTrack.setTurnStateInjectEnabled(true)
 	if !probeTrack.paused["gpt-5.6-terra"] {
 		t.Fatal("paused model must be restored")
 	}
@@ -1792,8 +1837,10 @@ func TestTimezoneConfigParsing(t *testing.T) {
 func TestTurnStateOverrideApply(t *testing.T) {
 	turnStateOverride = atomic.Value{}
 	t.Cleanup(func() { turnStateOverride = atomic.Value{} })
-	// Isolate from other tests: the shared baseline table must be empty here.
+	// Isolate from other tests: the shared baseline table must be empty here
+	// and the dashboard injection switch must be in its historic on state.
 	probeTrack.values = map[string]stateEntry{}
+	probeTrack.setTurnStateInjectEnabled(true)
 
 	config := `turn-state-override:
   enabled: true
@@ -1839,6 +1886,21 @@ func TestTurnStateOverrideApply(t *testing.T) {
 	if headers, status = applyTurnStateOverride("gpt-6-astra", "", clientHeaders); status != "applied-config" || headers.Get(turnStateHeader) != "REWRITTEN-STATE" {
 		t.Fatalf("force mode must replace: %v %+v", status, headers)
 	}
+
+	// Dashboard switch off: no rewrite at all, whichever the mode.
+	oldTrack := probeTrack
+	probeTrack = &probeEngine{values: map[string]stateEntry{}, failures: map[string]probeFailure{},
+		paused: map[string]bool{}, probing: map[string]bool{}}
+	probeTrack.setTurnStateInjectEnabled(false)
+	if headers, status = applyTurnStateOverride("gpt-6-astra", "", nil); status != "" || headers != nil {
+		t.Fatalf("disabled injection must not rewrite: %v %+v", status, headers)
+	}
+	// Re-enabling restores the rewrite (the fresh engine defaults to on).
+	probeTrack.setTurnStateInjectEnabled(true)
+	if headers, status = applyTurnStateOverride("gpt-6-astra", "", nil); status != "applied-config" || headers.Get(turnStateHeader) != "REWRITTEN-STATE" {
+		t.Fatalf("enabled injection must rewrite again: %v %+v", status, headers)
+	}
+	probeTrack = oldTrack
 
 	// Disabled config means no action at all.
 	if err := configureTurnStateOverride([]byte(`turn-state-override:
@@ -1897,6 +1959,7 @@ func TestInterceptRequestAppliesRewrite(t *testing.T) {
 // TestLifecycleConfigExtraction feeds a base64 config_yaml lifecycle payload as
 // the host sends it.
 func TestLifecycleConfigExtraction(t *testing.T) {
+	newPrefetchTestEngine(t)
 	turnStateOverride = atomic.Value{}
 	t.Cleanup(func() { turnStateOverride = atomic.Value{} })
 	payload, _ := json.Marshal(map[string]any{
@@ -1917,6 +1980,7 @@ func TestLifecycleConfigExtraction(t *testing.T) {
 // TestRegistrationDeclaresResponseCapabilities ensures the new hooks are
 // advertised to the host, otherwise CPA never calls them.
 func TestRegistrationDeclaresResponseCapabilities(t *testing.T) {
+	newPrefetchTestEngine(t)
 	t.Setenv("LKS_MIRROR_URL", "") // Registration tests must never publish to an operator's configured receiver.
 	result, err := handleMethod("plugin.register", nil)
 	if err != nil {
@@ -2020,8 +2084,12 @@ func newPrefetchTestEngine(t *testing.T) *probeEngine {
 	e.cfg.Config.ProbeInterval = time.Millisecond
 	e.cfg.Config.MaxAttemptsPerRound = 1
 	previous := probeTrack
+	// A prior lifecycle/config fixture may have started watchers on the
+	// shared engine. Stop them before replacing global authentication stubs.
+	previous.stopPrefetchWatcher()
 	probeTrack = e
 	t.Setenv("LKS_TZ_STATE_FILE", filepath.Join(t.TempDir(), "state.json"))
+	t.Cleanup(func() { setDiagnosticsEnabled(false) })
 	t.Cleanup(func() {
 		e.stopPrefetchWatcher()
 		e.stop()

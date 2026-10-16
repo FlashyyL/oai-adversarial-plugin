@@ -47,6 +47,8 @@ class DiagnosticTests(unittest.TestCase):
                 with contextlib.redirect_stdout(output):
                     runpy.run_path(str(SCRIPTS / name), run_name='__main__')
         request.assert_called_once()
+        self.assertEqual(request.call_args.args[0].full_url,
+                         'http://127.0.0.1:8317/v0/management/oai-adversarial-plugin/requests')
         self.assertEqual(request.call_args.args[0].get_header('Authorization'), 'Bearer ' + KEY)
         text = output.getvalue()
         for secret in (TOKEN, PREVIEW, KEY, PROXY, ERROR, 'PRIVATE_PASSWORD'):

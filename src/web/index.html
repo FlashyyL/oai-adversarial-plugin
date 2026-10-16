@@ -35,6 +35,20 @@
     @media(forced-colors:active){button,.badge,.tabs button.tab.active{border:1px solid ButtonText}.tabs button.tab.active:after{background:Highlight}}
 
 .model-group td{position:static!important;background:var(--subtle);border-top:1px solid var(--line)}.model-group-content{display:flex;align-items:center;gap:12px;min-width:260px}.model-group td{padding-top:12px;padding-bottom:12px;vertical-align:middle}.model-group td.model{max-width:none}.model-disclosure{flex:none}.model-summary{display:flex;align-items:center;gap:8px;white-space:nowrap}.model-summary .badge{flex:none}.model-disclosure{background:transparent;border:0;padding:8px 0;text-align:left;font:inherit;font-weight:650;cursor:pointer;color:inherit}.model-summary .sub{font-weight:400}.request-settings{margin-bottom:24px}.request-settings .settings-body{grid-template-columns:1fr}.request-settings .settings-line{padding-top:12px}#request-timezone-summary{font-weight:400;color:var(--muted);overflow-wrap:anywhere}#timezone-input{width:min(100%,260px)}.account-detail td:first-child{padding-left:28px;overflow-wrap:anywhere}.model-disclosure:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+    .tabs{flex-wrap:wrap;column-gap:20px;row-gap:0}.eval-form{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;padding:20px 22px}.eval-form label{display:flex;flex-direction:column;gap:6px;min-width:0}.eval-form input,.eval-form select{max-width:100%;width:100%;padding:8px;border:1px solid var(--control-line);border-radius:7px;background:var(--bg);color:var(--text);font:inherit}.eval-accounts{display:flex;flex-wrap:wrap;gap:10px;padding:0 22px 18px}.eval-accounts label{display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--line);border-radius:7px;overflow-wrap:anywhere}.eval-notice{padding:0 22px 18px;white-space:normal}.eval-confirm{display:flex;align-items:center;gap:9px;flex-wrap:wrap}.eval-answer{white-space:pre-wrap;overflow-wrap:anywhere;max-height:280px;overflow:auto;font:12px/1.7 ui-monospace,monospace}.eval-detail-body{padding:18px 22px}.eval-detail-body details{border-top:1px solid var(--line);padding:12px 0}.eval-detail-body summary{cursor:pointer}.eval-result{white-space:normal;min-width:180px}@media(max-width:720px){.eval-form{grid-template-columns:1fr 1fr}}@media(max-width:440px){.eval-form{grid-template-columns:1fr}.tabs{column-gap:16px}}
+    #view-eval td.model{min-width:110px}#view-eval th:last-child,#view-eval td:last-child{position:sticky;right:0;background:var(--card);border-left:1px solid var(--line)}
+    .performance-cell{min-width:170px;white-space:nowrap;font-variant-numeric:tabular-nums}.performance-cell .sub{font-size:11px}
+    :root{--info:#345e93;--info-bg:#edf2fa}:root[data-theme="dark"]{--info:#b8d2f6;--info-bg:#27364b}
+    .status-icon{width:16px;height:16px;flex:none}.status-pill{display:inline-flex;align-items:center;gap:6px;padding:4px 9px;border-radius:6px;font-size:11px;font-weight:600;line-height:1.5;vertical-align:middle;white-space:normal;background:var(--subtle);color:var(--muted)}.status-pill[data-tone="ok"]{background:var(--ok-bg);color:var(--ok)}.status-pill[data-tone="danger"]{background:var(--danger-bg);color:var(--danger)}.status-pill[data-tone="warn"]{background:var(--warn-bg);color:var(--warn)}.status-pill[data-tone="info"]{background:var(--info-bg);color:var(--info)}
+    #view-eval .eval-form label{font-size:12px;color:var(--muted)}#view-eval .eval-form :is(input,select){color:var(--text);background:var(--subtle)}#view-eval .eval-form :is(input,select):focus{background:var(--bg)}#view-eval .eval-notice{font-size:12px;line-height:1.8}.eval-accounts label{background:var(--subtle);font-size:12px}.eval-accounts label:has(input:checked){border-color:var(--ok);background:var(--ok-bg)}#view-eval input[type=checkbox]{accent-color:var(--ok)}
+    .eval-launch{border-bottom:0;justify-content:flex-start}.eval-launch .eval-confirm{flex:1;font-size:12px;color:var(--muted)}#eval-run{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:9px 17px;border-color:transparent;background:var(--ok-bg);color:var(--ok);font-weight:650}#eval-run:hover:not(:disabled){background:var(--ok);color:var(--ok-bg);border-color:var(--ok)}#eval-feedback{flex-basis:100%;font-size:12px}.eval-legend{display:flex;flex-wrap:wrap;gap:12px 20px;padding:14px 22px;border-top:1px solid var(--line)}.eval-legend .status-pill{background:transparent;padding:0;font-weight:450}.eval-legend-label{font-size:11px;color:var(--muted)}
+    .eval-result>.sub{margin-top:7px;line-height:1.8}.eval-score{display:flex;align-items:baseline;gap:10px;margin-top:8px}.eval-score strong{font-size:19px;line-height:1.3;font-weight:650;letter-spacing:-.04em;font-variant-numeric:tabular-nums}.eval-score span{font-size:11px;color:var(--muted)}.eval-score[data-tone="ok"] strong{color:var(--ok)}.eval-score[data-tone="danger"] strong{color:var(--danger)}.eval-progress{margin-top:6px;color:var(--muted);font-size:11px;font-variant-numeric:tabular-nums}.eval-detail-body details>summary{display:flex;align-items:center;gap:12px;list-style:none;font-weight:550}.eval-detail-body details>summary::-webkit-details-marker{display:none}.eval-detail-body details>summary:before{content:"";width:6px;height:6px;flex:none;border:solid var(--muted);border-width:0 1.5px 1.5px 0;transform:rotate(-45deg)}.eval-detail-body details[open]>summary:before{transform:rotate(45deg)}.eval-detail-body details>summary .status-pill{margin-left:auto}.eval-detail-body details>p:first-of-type{margin-top:12px}.eval-detail-body .eval-answer{background:var(--subtle);padding:12px 14px;border-radius:7px}.performance-cell>.status-pill{margin-top:7px}.tabs #tab-eval.active .section-icon{color:var(--ok)}
+    @media(max-width:720px){.eval-legend{padding:14px 16px;gap:12px 16px}.eval-launch .eval-confirm{flex-basis:100%}#eval-run{width:100%}.eval-detail-body{padding:16px}.eval-detail-body details>summary{flex-wrap:wrap}.eval-score{flex-wrap:wrap;gap:4px 10px}}
+    @media(forced-colors:active){.status-pill{border:1px solid CanvasText}#eval-run{border:1px solid ButtonText}}
+    .badge.probe-ok,.badge.probe-fail{display:inline-flex;align-items:center;gap:6px;vertical-align:middle}.badge .status-icon{width:14px;height:14px}
+    .quota-item{border-top:1px solid var(--line)}.quota-item:first-child{border-top:0}.quota-main{display:grid;grid-template-columns:minmax(170px,1fr) minmax(90px,.42fr) minmax(150px,.65fr) minmax(390px,1.25fr);gap:20px;align-items:center;padding:20px 22px}.quota-main .exit-name{margin:0}.quota-main .exit-identity{grid-column:1;grid-row:1}.quota-request{max-width:260px;white-space:normal;overflow-wrap:anywhere}#view-concurrency .eval-notice{padding-top:16px;font-size:12px}.quota-current{font-size:20px;font-weight:600;font-variant-numeric:tabular-nums}.quota-state{justify-self:start;min-width:0;max-width:170px}.quota-state .status-pill{white-space:normal;max-width:100%}.quota-settings{display:grid;grid-template-columns:repeat(2,minmax(0,1fr)) auto;gap:16px;align-items:end}.quota-setting{display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:auto 40px;align-items:end;gap:6px;min-width:0}.quota-setting label{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.quota-setting input{width:100%;min-width:0;height:40px}.quota-settings>button{white-space:nowrap;height:40px}
+    @media(max-width:1000px){.quota-main{grid-template-columns:minmax(0,1fr) auto auto;gap:14px}.quota-main .quota-current{grid-column:2;grid-row:1}.quota-main .quota-state{grid-column:3;grid-row:1}.quota-settings{grid-column:1/-1;grid-row:2;width:min(100%,440px);justify-self:end}}
+    @media(max-width:720px){.quota-main{grid-template-columns:minmax(0,1fr) auto;gap:12px;padding:18px 16px}.quota-main .quota-current{grid-column:1;grid-row:2}.quota-main .quota-state{grid-column:2;grid-row:1/3}.quota-settings{grid-row:3;gap:10px;width:100%}.quota-setting{gap:5px;grid-template-rows:auto 44px}.quota-setting label{font-size:11px}.quota-setting input,.quota-settings>button{height:44px;min-height:44px}.quota-settings>button{padding-inline:8px;font-size:11px}}
 </style>
 </head>
 <body>
@@ -45,9 +59,16 @@
   </header>
   <nav class="tabs" aria-label="插件功能" data-i18n-aria-label="插件功能">
     <button id="tab-records" type="button" class="tab active" aria-current="page"><svg class="section-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M8 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-3"/><path d="M16 3h5v5M21 3l-9 9M7 12h2M7 16h10"/></svg><span><span data-i18n="请求记录">请求记录</span></span></button>
-    <button id="tab-router" type="button" class="tab"><svg class="section-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg><span><span data-i18n="探测控制台">探测控制台</span></span></button>
+    <button id="tab-concurrency" type="button" class="tab"><svg class="section-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="6" width="18" height="14" rx="2"/><path d="M8 6V3h8v3M7 11h2M7 15h4M14 11h3M14 15h3"/></svg><span data-i18n="账号设置">账号设置</span></button>
+<button id="tab-router" type="button" class="tab"><svg class="section-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg><span><span data-i18n="探测控制台">探测控制台</span></span></button>
     <button id="tab-pool" type="button" class="tab"><svg class="section-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="8" y="3" width="8" height="5" rx="1"/><rect x="2" y="16" width="8" height="5" rx="1"/><rect x="14" y="16" width="8" height="5" rx="1"/><path d="M12 8v4M6 16v-4h12v4"/></svg><span><span data-i18n="代理池">代理池</span></span></button>
+    <button id="tab-eval" type="button" class="tab"><svg class="section-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9 3h6M10 3v6l-6 10a1 1 0 0 0 1 2h14a1 1 0 0 0 1-2L14 9V3M8 15h8"/></svg><span data-i18n="降智测试">降智测试</span></button>
   </nav>
+  <section id="view-concurrency" class="hidden" aria-label="账号设置" data-i18n-aria-label="账号设置">
+    <section class="panel"><div class="toolbar"><h2 class="section-heading" data-i18n="凭据文件设置">凭据文件设置</h2><span class="sub" data-i18n="0 为不限 · 每个文件跨模型合计">0 为不限 · 每个文件跨模型合计</span></div><p class="eval-notice" data-i18n="仅限制当前 CPA 实例的原生 Codex 凭据。满额时选择同一候选池中的其他账号；全部满额返回 429。指定账号测试等待名额，探测保留预算；流结束后释放。">仅限制当前 CPA 实例的原生 Codex 凭据。满额时选择同一候选池中的其他账号；全部满额返回 429。指定账号测试等待名额，探测保留预算；流结束后释放。</p><div id="concurrency-accounts"></div><p id="concurrency-feedback" class="eval-notice" role="status"></p></section>
+    <details class="panel probe-records" id="concurrency-active-panel" open><summary class="toolbar"><h2 data-i18n="在途请求">在途请求</h2><span class="sub" data-i18n="预留和执行占用名额，等待不占用">预留和执行占用名额，等待不占用</span></summary><div class="table-wrap" tabindex="0" aria-label="在途请求" data-i18n-aria-label="在途请求"><table><thead><tr><th data-i18n="凭据文件">凭据文件</th><th data-i18n="请求 ID">请求 ID</th><th data-i18n="请求模型">请求模型</th><th data-i18n="请求来源">请求来源</th><th data-i18n="请求状态">请求状态</th><th data-i18n="运行时长">运行时长</th></tr></thead><tbody id="concurrency-active"></tbody></table></div></details>
+    <details class="panel probe-records" id="concurrency-recent-panel"><summary class="toolbar"><h2 data-i18n="最近完成">最近完成</h2><span class="sub" data-i18n="本次启动最近 50 条；完整请求记录在请求页">本次启动最近 50 条；完整请求记录在请求页</span></summary><div class="table-wrap" tabindex="0" aria-label="最近完成" data-i18n-aria-label="最近完成"><table><thead><tr><th data-i18n="凭据文件">凭据文件</th><th data-i18n="请求 ID">请求 ID</th><th data-i18n="请求模型">请求模型</th><th data-i18n="请求来源">请求来源</th><th data-i18n="请求状态">请求状态</th><th data-i18n="运行时长">运行时长</th></tr></thead><tbody id="concurrency-recent"></tbody></table></div></details>
+  </section>
   <section id="view-records">
     <section class="cards" aria-label="处理统计" data-i18n-aria-label="处理统计">
       <div class="card"><div class="label"><span data-i18n="已处理请求">已处理请求</span></div><div class="number" id="total">—</div></div>
@@ -60,7 +81,7 @@
     <details class="panel probe-settings request-settings" id="request-settings">
       <summary><span class="settings-title"><svg class="section-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="M4 7h16M4 17h16M8 4v6M16 14v6"/></svg><span data-i18n="请求设置">请求设置</span></span><span id="request-timezone-summary">—</span></summary>
       <div class="settings-body">
-      <div class="settings-line"><label for="timezone-input" data-i18n="请求目标时区">请求目标时区</label><input id="timezone-input" list="timezone-options" maxlength="128" spellcheck="false" autocomplete="off" aria-label="请求目标时区" data-i18n-aria-label="请求目标时区"><datalist id="timezone-options"><option value="America/Los_Angeles"></option><option value="America/New_York"></option><option value="Asia/Shanghai"></option><option value="Asia/Singapore"></option><option value="Asia/Tokyo"></option><option value="Europe/London"></option><option value="Europe/Berlin"></option><option value="UTC"></option></datalist><button id="timezone-save" type="button" data-i18n="确认保存">确认保存</button><span id="timezone-feedback" role="status"></span><span class="sub" data-i18n="替换发往上游的请求正文中的时区；不影响探测休眠或页面时间（UTC+8）。保存后覆盖配置默认值。">替换发往上游的请求正文中的时区；不影响探测休眠或页面时间（UTC+8）。保存后覆盖配置默认值。</span></div>
+      <div class="settings-line"><label for="timezone-input" data-i18n="请求目标时区">请求目标时区</label><input id="timezone-input" list="timezone-options" maxlength="128" spellcheck="false" autocomplete="off" aria-label="请求目标时区" data-i18n-aria-label="请求目标时区"><datalist id="timezone-options"><option value="America/Los_Angeles"></option><option value="America/New_York"></option><option value="Asia/Shanghai"></option><option value="Asia/Singapore"></option><option value="Asia/Tokyo"></option><option value="Europe/London"></option><option value="Europe/Berlin"></option><option value="UTC"></option></datalist><button id="timezone-save" type="button" data-i18n="确认保存">确认保存</button><span id="timezone-feedback" role="status"></span><button id="turn-state-inject-toggle" type="button" class="switch-btn" aria-pressed="true" title="注入 X-Codex-Turn-State：开启时向参与检测的模型注入账号健康票据、用健康基线替换响应中的异常票据；关闭后不再改写请求或回灌响应，业务流量原样通过" data-i18n-title="注入 X-Codex-Turn-State：开启时向参与检测的模型注入账号健康票据、用健康基线替换响应中的异常票据；关闭后不再改写请求或回灌响应，业务流量原样通过"><span data-i18n="注入 X-Codex-Turn-State：—">注入 X-Codex-Turn-State：—</span></button><span class="sub" data-i18n="替换发往上游的请求正文中的时区；不影响探测休眠或页面时间（UTC+8）。保存后覆盖配置默认值。">替换发往上游的请求正文中的时区；不影响探测休眠或页面时间（UTC+8）。保存后覆盖配置默认值。</span></div>
       </div>
     </details>
     <section class="panel">
@@ -72,7 +93,7 @@
       <summary class="toolbar"><h2 class="section-heading"><svg class="section-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M8 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-3"/><path d="M16 3h5v5M21 3l-9 9M7 12h2M7 16h10"/></svg><span><span data-i18n="最近请求">最近请求</span></span></h2><span class="probe-note" data-i18n="最近 50 条 · 最新在前">最近 50 条 · 最新在前</span></summary>
       <div class="toolbar"><span id="refresh-note"><span data-i18n="正在连接">正在连接</span></span><button id="refresh" type="button" disabled><span data-i18n="刷新">刷新</span></button></div>
       <div class="table-wrap hidden" id="results" tabindex="0" role="region" aria-label="最近请求，可横向滚动" data-i18n-aria-label="最近请求，可横向滚动"><table>
-        <thead><tr><th><span data-i18n="请求时间（UTC+8）">请求时间（UTC+8）</span></th><th><span data-i18n="模型">模型</span></th><th><span data-i18n="上游响应模型">上游响应模型</span></th><th><span data-i18n="原时区">原时区</span></th><th><span data-i18n="替换后时区">替换后时区</span></th><th><span data-i18n="处理方式">处理方式</span></th><th>X-Codex-Turn-State</th></tr></thead>
+        <thead><tr><th><span data-i18n="请求时间（UTC+8）">请求时间（UTC+8）</span></th><th><span data-i18n="模型">模型</span></th><th><span data-i18n="上游响应模型">上游响应模型</span></th><th><span data-i18n="原时区">原时区</span></th><th><span data-i18n="替换后时区">替换后时区</span></th><th><span data-i18n="处理方式">处理方式</span></th><th>X-Codex-Turn-State</th><th><span data-i18n="TPS / 延迟">TPS / 延迟</span></th></tr></thead>
         <tbody id="rows"></tbody>
       </table></div>
       </details>
@@ -140,11 +161,163 @@
       <div id="pool-wrap"><div id="pool-rows" role="list" aria-label="代理出口" data-i18n-aria-label="代理出口"></div></div>
     </section>
   </section>
+  <section id="view-eval" class="hidden" aria-label="降智测试" data-i18n-aria-label="降智测试">
+    <section class="panel">
+      <div class="toolbar"><h2 data-i18n="手动能力测试">手动能力测试</h2></div>
+      <div class="eval-form">
+        <label><span data-i18n="测试类型">测试类型</span><select id="eval-kind"><option value="candy" data-i18n="糖果测试">糖果测试</option><option value="modeltrace">ModelTrace</option></select></label>
+        <label><span data-i18n="请求模型">请求模型</span><input id="eval-model" value="gpt-6-astra" list="eval-model-list" maxlength="128"><datalist id="eval-model-list"></datalist></label>
+        <label><span data-i18n="推理强度">推理强度</span><select id="eval-effort"><option value="none" data-i18n="由 CPA 决定">由 CPA 决定</option><option value="minimal">minimal</option><option value="low">low</option><option value="medium">medium</option><option value="high">high</option><option value="xhigh">xhigh</option></select></label>
+        <label><span data-i18n="单账号次数">单账号次数</span><input id="eval-runs" type="number" min="1" max="10" step="1" value="1"></label>
+      </div>
+      <p class="eval-notice" data-i18n="CPA 当前账号路由 · 默认规范化为配置目标时区，不注入本插件票据；健康探测暂停不影响手动测试；保留休眠、串行间隔与共享停止，不解除全局停止。">CPA 当前账号路由 · 默认规范化为配置目标时区，不注入本插件票据；健康探测暂停不影响手动测试；保留休眠、串行间隔与共享停止，不解除全局停止。</p>
+      <div id="eval-accounts" class="eval-accounts"></div>
+      <p id="eval-budget" class="eval-notice"></p>
+      <div class="toolbar eval-launch"><label class="eval-confirm"><input id="eval-confirm" type="checkbox"><span data-i18n="我确认测试将消耗所选账号的额度">我确认测试将消耗所选账号的额度</span></label><button id="eval-run" type="button" disabled><svg class="status-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M8 4l12 8-12 8z"/></svg><span data-i18n="开始测试">开始测试</span></button><span id="eval-feedback" role="status"></span></div>
+      <p class="eval-notice" data-i18n="糖果题沿用原仓库题面与判分，答案为 21。ModelTrace 是候选归因，不证明身份或降智；测试结果不参与业务拦截。">糖果题沿用原仓库题面与判分，答案为 21。ModelTrace 是候选归因，不证明身份或降智；测试结果不参与业务拦截。</p>
+      <div id="eval-legend" class="eval-legend" aria-label="状态说明" data-i18n-aria-label="状态说明"></div>
+    </section>
+    <section class="panel"><div class="toolbar"><h2 data-i18n="测试任务">测试任务</h2><span id="eval-sleep" class="sub"></span></div><div class="table-wrap" tabindex="0" aria-label="测试任务" data-i18n-aria-label="测试任务"><table><thead><tr><th data-i18n="账号">账号</th><th data-i18n="请求模型">请求模型</th><th data-i18n="测试类型">测试类型</th><th data-i18n="进度">进度</th><th data-i18n="操作">操作</th></tr></thead><tbody id="eval-jobs"></tbody></table></div></section>
+    <section class="panel"><div class="toolbar"><h2 data-i18n="测试历史">测试历史</h2><span data-i18n="每账号糖果 20 组 / ModelTrace 5 组；全局最多 256 组及 8 MiB。">每账号糖果 20 组 / ModelTrace 5 组；全局最多 256 组及 8 MiB。</span></div><div class="table-wrap" tabindex="0" aria-label="测试历史" data-i18n-aria-label="测试历史"><table><thead><tr><th data-i18n="时间（UTC+8）">时间（UTC+8）</th><th data-i18n="账号">账号</th><th data-i18n="请求模型">请求模型</th><th data-i18n="测试类型">测试类型</th><th data-i18n="结果">结果</th><th data-i18n="操作">操作</th></tr></thead><tbody id="eval-results"></tbody></table></div></section>
+    <section id="eval-detail" class="panel hidden"><div class="toolbar"><h2 data-i18n="测试详情">测试详情</h2><button id="eval-detail-close" type="button" data-i18n="关闭详情">关闭详情</button></div><div id="eval-detail-body" class="eval-detail-body"></div></section>
+    <details class="panel"><summary class="toolbar" data-i18n="第三方来源与许可">第三方来源与许可</summary><div class="eval-detail-body"><p><a href="https://github.com/haowang02/cpa-plugin-codex-candy-eval" target="_blank" rel="noopener noreferrer">cpa-plugin-codex-candy-eval</a> · <a href="https://github.com/xqy2006/ModelTrace" target="_blank" rel="noopener noreferrer">ModelTrace</a> · MIT</p><pre id="eval-licenses" class="eval-answer"></pre></div></details>
+  </section>
   <p class="status" id="status" role="status"></p>
 </main>
 <script>
   // UI message -> [English, Traditional Chinese, Russian]. Simplified Chinese is the key.
   const messages={
+    "账号设置":["Account settings","帳號設定","Настройки аккаунтов"],
+    "账号设置已保存，在途请求继续完成":["Account settings saved; active requests continue","帳號設定已儲存，進行中請求繼續完成","Настройки аккаунта сохранены; активные запросы продолжаются"],
+    "凭据文件设置":["Credential settings","憑證檔案設定","Настройки учётных данных"],
+    "7d 用量阈值（%）":["7d usage threshold (%)","7d 用量閾值（%）","Порог использования за 7 дней (%)"],
+    "0 或留空关闭阈值限制；达到阈值暂停新请求，额度刷新后自动恢复。手动停用状态保持。":["0 or blank disables the threshold. New requests pause at the threshold and resume after quota refresh. Manual disabling is preserved.","0 或留空關閉閾值限制；達到閾值暫停新請求，額度刷新後自動恢復。手動停用狀態保持。","0 или пустое поле отключает порог. При достижении новые запросы приостанавливаются, после обновления квоты возобновляются. Ручное отключение сохраняется."],
+    "7d 阈值暂停":["Paused by 7d threshold","7d 閾值暫停","Пауза по порогу 7 дней"],
+    "等待额度确认":["Awaiting quota confirmation","等待額度確認","Ожидание подтверждения квоты"],
+    "7d 用量：{used}":["7d usage: {used}","7d 用量：{used}","Использовано за 7 дней: {used}"],
+    "重置：{time}":["Reset: {time}","重置：{time}","Сброс: {time}"],
+    "更新：{time}":["Updated: {time}","更新：{time}","Обновлено: {time}"],
+    "额度查询失败，将自动重试；未确认刷新":["Quota query failed; retrying automatically. Reset is unconfirmed.","額度查詢失敗，將自動重試；未確認刷新","Ошибка запроса квоты; автоматический повтор. Сброс не подтверждён."],
+    "额度快照待更新":["Quota snapshot needs refresh","額度快照待更新","Снимок квоты требует обновления"],
+    "额度快照保存失败，将自动重试；当前运行状态保留":["Quota snapshot could not be saved; retrying automatically. Current runtime state is retained.","額度快照儲存失敗，將自動重試；目前執行狀態保留","Не удалось сохранить снимок квоты; автоматический повтор. Текущее состояние сохранено в памяти."],
+    "请输入 0–100 的用量阈值":["Enter a usage threshold from 0 to 100","請輸入 0–100 的用量閾值","Введите порог использования от 0 до 100"],
+    "7d 阈值已保存，在途请求继续完成":["7d threshold saved; active requests continue","7d 閾值已儲存，進行中請求繼續完成","Порог 7 дней сохранён; активные запросы продолжаются"],
+    "凭据文件":["Credential file","憑證檔案","Файл учётных данных"],
+    "凭据 {n}":["Credential {n}","憑證 {n}","Учётные данные {n}"],
+    "0 为不限 · 每个文件跨模型合计":["0 = unlimited · Shared across models per file","0 為不限 · 每個檔案跨模型合計","0 = без ограничения · Общий лимит моделей для файла"],
+    "仅限制当前 CPA 实例的原生 Codex 凭据。满额时选择同一候选池中的其他账号；全部满额返回 429。指定账号测试等待名额，探测保留预算；流结束后释放。":["Native Codex credentials in this CPA instance only. Full accounts yield to others in the same candidate pool; all full returns 429. Pinned evaluations wait for a slot, probes retain budgets. Release after the stream ends.","僅限制目前 CPA 實例的原生 Codex 憑證。滿額時選擇同一候選池中的其他帳號；全部滿額回傳 429。指定帳號測試等待名額，探測保留預算；串流結束後釋放。","Только нативные учётные данные Codex в этом экземпляре CPA. При заполнении выбирается другой аккаунт того же пула; все заняты — 429. Тесты заданного аккаунта ждут слот, проверки сохраняют бюджет. Освобождение после завершения потока."],
+    "在途请求":["Active requests","進行中請求","Активные запросы"],
+    "预留和执行占用名额，等待不占用":["Reserved/running occupy slots; waiting does not","預留和執行占用名額，等待不占用","Резерв и выполнение занимают слоты, ожидание — нет"],
+    "最近完成":["Recently completed","最近完成","Недавно завершённые"],
+    "本次启动最近 50 条；完整请求记录在请求页":["Last 50 since startup; request history on the Requests tab","本次啟動最近 50 筆；完整請求記錄在請求頁","Последние 50 после запуска; журнал на вкладке запросов"],
+    "请求 ID":["Request ID","請求 ID","ID запроса"],
+    "请求来源":["Source","請求來源","Источник"],
+    "请求状态":["Request status","請求狀態","Статус запроса"],
+    "运行时长":["Elapsed","執行時間","Длительность"],
+    "最大并发":["Maximum concurrency","最大並行","Максимальный параллелизм"],
+    "已停用":["Disabled","已停用","Отключено"],
+    "不限":["Unlimited","不限","Без ограничения"],
+    "执行中":["Running","執行中","Выполняется"],
+    "待发出":["Reserved","等待送出","Зарезервирован"],
+    "等待名额":["Waiting for a slot","等待名額","Ожидание слота"],
+    "并发已满":["At capacity","並行已滿","Лимит достигнут"],
+    "空闲":["Idle","閒置","Свободен"],
+    "已完成":["Completed","已完成","Завершён"],
+    "状态未知":["Unknown status","狀態未知","Статус неизвестен"],
+    "业务请求":["Business request","業務請求","Обычный запрос"],
+    "健康探测":["Health probe","健康探測","Проверка здоровья"],
+    "请求已换号":["Request rerouted","請求已換號","Запрос перенаправлен"],
+    "没有已启用的原生 Codex 凭据":["No enabled native Codex credentials","沒有已啟用的原生 Codex 憑證","Нет включённых нативных учётных данных Codex"],
+    "已停用凭据":["Disabled credential","已停用憑證","Отключённые учётные данные"],
+    "尚无在途请求":["No active requests","尚無進行中請求","Нет активных запросов"],
+    "尚无完成记录":["No completed requests","尚無完成記錄","Нет завершённых запросов"],
+    "已移除凭据":["Removed credential","已移除憑證","Удалённые учётные данные"],
+    "并发配置已保存，在途请求继续完成":["Concurrency saved; active requests continue","並行設定已儲存，進行中請求繼續完成","Лимит сохранён; активные запросы продолжатся"],
+    "请输入 0–10000 的整数并发上限":["Enter an integer concurrency limit from 0 to 10000","請輸入 0–10000 的整數並行上限","Введите целый лимит от 0 до 10000"],
+    "并发配置不可读，请检查存储；不会覆盖原文件":["Concurrency settings unreadable; check storage. Original file stays intact","並行設定不可讀，請檢查儲存；不會覆蓋原檔案","Настройки лимитов недоступны; проверьте хранилище. Исходный файл сохранён"],
+    "并发设置保存失败，原设置保持":["Concurrency save failed; previous settings retained","並行設定儲存失敗，原設定保留","Не удалось сохранить лимит; прежнее значение сохранено"],
+    "凭据清单不可用，请刷新后重试":["Credential inventory unavailable; refresh and retry","憑證清單不可用，請重新整理後重試","Список учётных данных недоступен; обновите и повторите"],
+    "状态说明":["Status legend","狀態說明","Обозначения статусов"],
+    "含错误答案":["Includes incorrect answers","含錯誤答案","Есть неверные ответы"],
+    "已判分正确率":["Accuracy of graded answers","已判分正確率","Точность оценённых ответов"],
+    "样本 {n}":["Sample {n}","樣本 {n}","Образец {n}"],
+    "请求成功":["Request succeeded","請求成功","Запрос выполнен"],
+    "TPS / 延迟":["TPS / Latency","TPS / 延遲","TPS / Задержка"],
+    "TPS = 完整输出 Token（含推理）÷ 总耗时；不是首输出后的解码速度，也不作为降智判据。":["TPS = complete output tokens (including reasoning) / total latency. Not post-first-output decoding speed or a degradation signal.","TPS = 完整輸出 Token（含推理）÷ 總耗時；不是首輸出後的解碼速度，也不作為降智判據。","TPS = полные выходные токены (включая рассуждение) / общая задержка. Это не скорость декодирования после первого вывода и не признак деградации."],
+    "首输出 {first} · 总耗时 {total}":["First output {first} · Total {total}","首輸出 {first} · 總耗時 {total}","Первый вывод {first} · Всего {total}"],
+    "首输出延迟由插件实际收到的文本、推理或工具参数增量计时；不是宿主 TTFT。总耗时来自 CPA 完成回调起止时间，包含路由和重试；缺失数据不补造。":["First-output latency times actual text, reasoning or tool-argument deltas received by the plugin; it is not host TTFT. Total uses CPA completion timestamps and includes routing/retries. Missing data stays unknown.","首輸出延遲由外掛實際收到的文字、推理或工具參數增量計時；不是宿主 TTFT。總耗時來自 CPA 完成回呼起止時間，包含路由與重試；缺失資料不補造。","Первый вывод измеряется по полученным плагином приращениям текста, рассуждения или аргументов инструмента, а не по TTFT хоста. Общее время берётся из CPA и включает маршрутизацию и повторы. Отсутствующие данные не подставляются."],
+    "请求已失败":["Request failed","請求已失敗","Запрос завершился ошибкой"],
+    "请求已取消":["Request canceled","請求已取消","Запрос отменён"],
+    "请求已拒绝":["Request rejected","請求已拒絕","Запрос отклонён"],
+    "降智测试":["Ability tests","降智測試","Проверка способностей"],
+    "账号":["Account","帳號","Аккаунт"],
+    "上游模型":["Upstream model","上游模型","Модель провайдера"],
+    "第三方来源与许可":["Third-party sources and licenses","第三方來源與許可","Источники и лицензии"],
+    "手动能力测试":["Manual ability tests","手動能力測試","Ручные тесты способностей"],
+    "测试类型":["Test type","測試類型","Тип теста"],
+    "糖果测试":["Candy test","糖果測試","Тест с конфетами"],
+    "请求模型":["Requested model","請求模型","Запрошенная модель"],
+    "推理强度":["Reasoning effort","推理強度","Уровень рассуждения"],
+    "由 CPA 决定":["CPA default","由 CPA 決定","По умолчанию CPA"],
+    "单账号次数":["Runs per account","單帳號次數","Запусков на аккаунт"],
+    "CPA 当前账号路由 · 默认规范化为配置目标时区，不注入本插件票据；健康探测暂停不影响手动测试；保留休眠、串行间隔与共享停止，不解除全局停止。":["CPA account routing · Timezone normalization to the configured target is always applied; no plugin ticket injection. Health-probe pauses do not block manual tests. Sleep, serial pacing and shared stop still apply; the global halt is unchanged.","CPA 目前帳號路由 · 預設規範化為設定目標時區，不注入本外掛票據；健康探測暫停不影響手動測試；保留休眠、循序間隔及共用停止，不解除全域停止。","Маршрутизация CPA · Часовой пояс всегда приводится к заданному, без инъекции билета. Паузы проверки здоровья не блокируют ручные тесты. Сон, интервалы и общая остановка сохраняются."],
+    "我确认测试将消耗所选账号的额度":["I confirm these tests consume the selected accounts' quota","我確認測試將消耗所選帳號的額度","Подтверждаю расход квоты выбранных аккаунтов"],
+    "开始测试":["Start tests","開始測試","Запустить тесты"],
+    "糖果题沿用原仓库题面与判分，答案为 21。ModelTrace 是候选归因，不证明身份或降智；测试结果不参与业务拦截。":["Candy uses the original prompt and scoring, with answer 21. ModelTrace compares candidates, not proof of identity or degradation. Results never control business rejection.","糖果題沿用原倉庫題面與評分，答案為 21。ModelTrace 是候選歸因，不證明身分或降智；結果不參與業務攔截。","Задача Candy использует исходное задание и оценку, ответ — 21. ModelTrace сравнивает кандидатов и не доказывает идентичность или деградацию. Результаты не блокируют рабочие запросы."],
+    "测试任务":["Test jobs","測試任務","Задачи тестирования"],
+    "进度":["Progress","進度","Ход выполнения"],
+    "测试历史":["Test history","測試歷史","История тестов"],
+    "每账号糖果 20 组 / ModelTrace 5 组；全局最多 256 组及 8 MiB。":["Per account: 20 candy / 5 ModelTrace groups; global cap: 256 groups and 8 MiB.","每帳號糖果 20 組 / ModelTrace 5 組；全域最多 256 組及 8 MiB。","На аккаунт: 20 групп Candy / 5 ModelTrace; общий лимит: 256 групп и 8 MiB."],
+    "测试详情":["Test details","測試詳情","Подробности теста"],
+    "关闭详情":["Close details","關閉詳情","Закрыть подробности"],
+    "账号 {n}":["Account {n}","帳號 {n}","Аккаунт {n}"],
+    "请选择已启用账号":["Select enabled accounts","請選擇已啟用帳號","Выберите включённые аккаунты"],
+    "没有可测试的已启用 Codex 账号":["No enabled Codex accounts available","沒有可測試的已啟用 Codex 帳號","Нет включённых аккаунтов Codex"],
+    "所选 {accounts} 个账号 · 共 {requests} 次请求 · 不自动重试":["{accounts} selected accounts · {requests} requests · No automatic retries","已選 {accounts} 個帳號 · 共 {requests} 次請求 · 不自動重試","Выбрано аккаунтов: {accounts} · Запросов: {requests} · Без автоматических повторов"],
+    "尚无测试任务":["No test jobs","尚無測試任務","Нет задач тестирования"],
+    "尚无测试历史":["No test history","尚無測試歷史","Истории тестов нет"],
+    "请求失败":["Request failed","請求失敗","Ошибка запроса"],
+    "答案不确定":["Uncertain answer","答案不確定","Неопределённый ответ"],
+    "答案正确":["Correct answer","答案正確","Верный ответ"],
+    "答案错误":["Incorrect answer","答案錯誤","Неверный ответ"],
+    "测试已取消":["Test cancelled","測試已取消","Тест отменён"],
+    "部分有效":["Partial result","部分有效","Частичный результат"],
+    "测试完成":["Test completed","測試完成","Тест завершён"],
+    "测试执行中":["Testing","測試執行中","Тест выполняется"],
+    "等待或休眠中":["Waiting / sleeping","等待或休眠中","Ожидание / сон"],
+    "正在取消测试":["Cancelling test","正在取消測試","Отмена теста"],
+    "测试已排队":["Test queued","測試已排隊","Тест в очереди"],
+    "已提交 {count} 个测试任务":["Submitted {count} test jobs","已提交 {count} 個測試任務","Отправлено задач: {count}"],
+    "正确 {correct}/{graded} · 未判分 {other}":["Correct {correct}/{graded} · Ungraded {other}","正確 {correct}/{graded} · 未評分 {other}","Верно {correct}/{graded} · Без оценки {other}"],
+    "候选归因：{model} · {probability}% · 有效样本 {used}/3":["Candidate: {model} · {probability}% · Valid samples {used}/3","候選歸因：{model} · {probability}% · 有效樣本 {used}/3","Кандидат: {model} · {probability}% · Валидных образцов {used}/3"],
+    "家族归因：{family} · {probability}%":["Family attribution: {family} · {probability}%","家族歸因：{family} · {probability}%","Семейство: {family} · {probability}%"],
+    "样本 {n} · {status}":["Sample {n} · {status}","樣本 {n} · {status}","Образец {n} · {status}"],
+    "题目":["Prompt","題目","Задание"],
+    "回答":["Answer","回答","Ответ"],
+    "Token 输入 {input} / 输出 {output} / 推理 {reasoning}":["Tokens input {input} / output {output} / reasoning {reasoning}","Token 輸入 {input} / 輸出 {output} / 推理 {reasoning}","Токены вход {input} / выход {output} / рассуждение {reasoning}"],
+    "评测记录不可写，请检查存储状态":["Evaluation records are not writable; check storage","評測記錄不可寫，請檢查儲存狀態","Запись результатов недоступна; проверьте хранилище"],
+    "引擎正在停止或配置不可用，请稍后重试":["The engine is stopping or its configuration is unavailable; retry later","引擎正在停止或設定不可用，請稍後重試","Движок останавливается или конфигурация недоступна; повторите позже"],
+    "测试请求无效，请检查账号、模型及额度确认":["Invalid test request; check accounts, model and quota confirmation","測試請求無效，請檢查帳號、模型及額度確認","Неверный запрос теста; проверьте аккаунты, модель и подтверждение квоты"],
+    "测试参数无效，请检查次数和推理强度":["Invalid test parameters; check runs and reasoning effort","測試參數無效，請檢查次數和推理強度","Неверные параметры; проверьте число запусков и уровень рассуждения"],
+    "当前服务仍限制已暂停模型，请更新插件后重试":["This server still blocks paused models; update the plugin and retry","目前服務仍限制已暫停模型，請更新外掛後重試","Сервер ещё блокирует модели на паузе; обновите плагин и повторите"],
+    "账号列表读取失败，请刷新后重试":["Could not read the account list; refresh and retry","帳號清單讀取失敗，請重新整理後重試","Не удалось получить список аккаунтов; обновите и повторите"],
+    "所选账号已停用或身份变化，请重新选择":["Selected account disabled or identity changed; select again","所選帳號已停用或身分變更，請重新選擇","Выбранный аккаунт отключён или изменился; выберите заново"],
+    "所选账号已有测试任务，请等待或取消":["Selected account already has a test job; wait or cancel it","所選帳號已有測試任務，請等待或取消","У выбранного аккаунта уже есть тест; дождитесь завершения или отмените"],
+    "旧版 29 基准":["Legacy 29 baseline","舊版 29 基準","Старый эталон 29"],
+    "旧版糖果记录使用错误的 29 基准，仅保留历史，不与当前结果比较。":["This legacy candy record used the incorrect 29 baseline. It is preserved as history, not comparable with current results.","舊版糖果記錄使用錯誤的 29 基準，僅保留歷史，不與目前結果比較。","Старый результат Candy использовал ошибочный эталон 29. Он сохранён для истории и не сопоставим с текущими результатами."],
+    "测试请求失败，请检查 CPA 宿主及测试详情":["Test request failed; check CPA and test details","測試請求失敗，請檢查 CPA 宿主及測試詳情","Ошибка теста; проверьте CPA и подробности"],
+    "修订：{revision} · 路由：CPA · 不注入票据":["Revision: {revision} · Route: CPA · No ticket injection","修訂：{revision} · 路由：CPA · 不注入票據","Ревизия: {revision} · Маршрут: CPA · Без инъекции билета"],
+    "能力测试请求":["Ability test request","能力測試請求","Запрос теста возможностей"],
+    "样本 {n}":["Sample {n}","樣本 {n}","Образец {n}"],
+    "旧版评测：未记录时区":["Legacy evaluation: timezone not recorded","舊版評測：未記錄時區","Старый тест: часовой пояс не записан"],
+    "时区处理失败，测试请求未发出":["Timezone processing failed; the test request was not sent","時區處理失敗，測試請求未送出","Ошибка обработки часового пояса; запрос теста не отправлен"],
+    "请求目标时区：{zone}":["Request timezone: {zone}","請求目標時區：{zone}","Часовой пояс запроса: {zone}"],
+    "能力测试：不注入票据，不参与健康判定":["Ability test: no ticket injection or health verdict","能力測試：不注入票據，不參與健康判定","Тест возможностей: без инъекции билета и оценки здоровья"],
+    "能力测试耗时由插件计时：从调用 CPA 执行到流读取/关闭完成，不含排队；首输出不是宿主 TTFT。":["Ability test timing: CPA execution callback through stream read/close, excluding queue wait. First output is not host TTFT.","能力測試耗時由外掛計時：從呼叫 CPA 執行到串流讀取/關閉完成，不含排隊；首輸出不是宿主 TTFT。","Время теста измеряется от вызова CPA до чтения/закрытия потока, без ожидания в очереди. Первый вывод не является TTFT хоста."],
+    "响应流解析失败，未取得有效答案；不是模型答错":["Response stream parsing failed; no valid answer was obtained. This is not an incorrect model answer.","回應串流解析失敗，未取得有效答案；不是模型答錯","Не удалось разобрать поток ответа; корректный ответ не получен. Это не ошибка решения модели."],
+    "错误":["Error","錯誤","Ошибка"],
+    "测试请求已超时，未取得有效答案":["Test request timed out; no valid answer was obtained","測試請求已逾時，未取得有效答案","Время запроса теста истекло; корректный ответ не получен"],
+    "请求 ID：{id}":["Request ID: {id}","請求 ID：{id}","ID запроса: {id}"],
     "请求未携带票据，未覆写":["No request ticket; not overwritten", "請求未攜帶票據，未覆寫", "В запросе нет билета; без перезаписи"],
     "请求设置":["Request settings", "請求設定", "Настройки запросов"],
     "{ready}/{count} 账号可用":["{ready}/{count} accounts ready", "{ready}/{count} 帳號可用", "Доступно аккаунтов: {ready}/{count}"],
@@ -157,6 +330,9 @@
     "原始长度未知":["Original length unknown", "原始長度未知", "Исходная длина неизвестна"],
     "请求：{value}":["Request: {value}", "請求：{value}", "Запрос: {value}"],
     "响应：{value}":["Response: {value}", "回應：{value}", "Ответ: {value}"],
+    "疑似降级档（{count} 字节）":["Suspected degraded tier ({count} bytes)", "疑似降級檔（{count} 位元組）", "Подозрение на деградацию ({count} байт)"],
+    "响应侧票据长度不在配置的正常集合（{lengths}）内；历史数据显示它常与来源相关的降智同时出现，此处仅作诊断展示。":["The response ticket length is outside the configured normal set ({lengths}); historical data shows it often co-occurs with source-correlated downgrades. Diagnostic display only.", "回應側票據長度不在設定的正常集合（{lengths}）內；歷史資料顯示它常與來源相關的降智同時出現，此處僅作診斷展示。", "Длина билета ответа вне настроенного нормального набора ({lengths}); данные показывают, что это часто совпадает с деградацией, связанной с источником. Только для диагностики."],
+    "Token 输入 {input} · 输出 {output} · 推理 {reasoning}":["Tokens in {input} · out {output} · reasoning {reasoning}", "Token 輸入 {input} · 輸出 {output} · 推理 {reasoning}", "Токены: вход {input} · выход {output} · рассужд. {reasoning}"],
     "收到 {count} 字节":["Received {count} bytes", "收到 {count} 位元組", "Получено {count} байт"],
     "注入 {count} 字节":["Injected {count} bytes", "注入 {count} 位元組", "Вставлено {count} байт"],
     "未收到票据":["No response ticket", "未收到票據", "Билет не получен"],
@@ -318,6 +494,10 @@
     "异常请求拦截：—":["Anomaly blocking: —", "異常請求攔截：—", "Блокировка аномалий: —"],
     "异常请求拦截：已关闭":["Anomaly blocking: off", "異常請求攔截：已關閉", "Блокировка аномалий: выкл."],
     "异常请求拦截：已开启":["Anomaly blocking: on", "異常請求攔截：已開啟", "Блокировка аномалий: вкл."],
+    "注入 X-Codex-Turn-State：—":["Turn-state injection: —", "注入 X-Codex-Turn-State：—", "Инъекция X-Codex-Turn-State: —"],
+    "注入 X-Codex-Turn-State：已关闭":["Turn-state injection: off", "注入 X-Codex-Turn-State：已關閉", "Инъекция X-Codex-Turn-State: выкл."],
+    "注入 X-Codex-Turn-State：已开启":["Turn-state injection: on", "注入 X-Codex-Turn-State：已開啟", "Инъекция X-Codex-Turn-State: вкл."],
+    "注入 X-Codex-Turn-State：开启时向参与检测的模型注入账号健康票据、用健康基线替换响应中的异常票据；关闭后不再改写请求或回灌响应，业务流量原样通过":["Turn-state injection: while on, checked models receive the account's healthy ticket and abnormal upstream tickets are replaced with a healthy baseline; while off, requests are not rewritten and responses are not backfilled, so traffic passes through untouched.", "注入 X-Codex-Turn-State：開啟時向參與檢測的模型注入帳號健康票據、用健康基線替換回應中的異常票據；關閉後不再改寫請求或回灌回應，業務流量原樣通過。", "Инъекция X-Codex-Turn-State: при включении проверяемые модели получают здоровый билет аккаунта, а аномальные билеты в ответах заменяются здоровой базой; при выключении плагин не переписывает запросы и не восстанавливает ответы — трафик проходит без изменений."],
     "当前模型均不检测":["None of the configured models are checked", "目前模型均不檢測", "Настроенные модели не проверяются"],
     "当前生效：{count} 分钟（{source}）":["Effective: {count} min ({source})", "目前生效：{count} 分鐘（{source}）", "Действует: {count} мин ({source})"],
     "当前生效：{count} 秒（{source}）":["Effective: {count} seconds ({source})", "目前生效：{count} 秒（{source}）", "Действует: {count} с ({source})"],
@@ -528,6 +708,9 @@
       }
       // Rendering does not touch open details, proxy drafts or dirty settings.
       if(lastData)render(lastData);
+      if(lastEval)renderEval(lastEval);
+      if(lastConcurrency)renderConcurrency(lastConcurrency);
+      if(evalDetail)renderEvalDetail(evalDetail);
       for(const [id,format] of messageBindings)el(id).textContent=format();
     }
     // Always translate once, even if the initial document language is Chinese.
@@ -584,7 +767,7 @@
   setupThemeSync();
   const el = id => document.getElementById(id);
   const prefix = location.pathname.split('/v0/resource/plugins/')[0];
-  const endpoint = prefix + '/v0/management/timezone-override/requests';
+  const endpoint = prefix + '/v0/management/oai-adversarial-plugin/requests';
   let clock,shanghai;
   function updateFormatters(){
     clock=new Intl.DateTimeFormat(locale,{timeZone:'Asia/Shanghai',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
@@ -605,13 +788,19 @@
   const sources = {request:'来自请求',response:'来自响应',stream:'来自流',probe:'探测获取',business:'业务观测',seed:'历史种子'};
   function sourceLabel(source){return t(sources[source]||source||'');}
   let lastData=null;
+  let lastEval=null,evalDetail=null,evalLoading=false,evalMutating=false,evalRevision=0,evalDetailRevision=0,activeTab='records';
+  let lastConcurrency=null,concurrencyLoading=false,concurrencyRevision=0;
+  const concurrencyDrafts=new Map(),concurrencySaving=new Map();
+  const concurrencyRows=new Map();let concurrencyOrder='';
+  const evalSelected=new Set();
+  const evalSampleOpen=new Set();let evalOpenID='';
   let timezoneDirty=false,timezoneSaving=false;
   let loading = false, rejectedKey = '';
   let prefetchDirty=false,prefetchSaving=false,prefetchLimit=54,editingExitID='',exitSaving=false,controlRevision=0;
   let intervalDirty=false,intervalSaving=false;
   let sleepDirty=false,sleepSaving=false;
   const sleepLabel=(start,end)=>start===end?t('不休眠'):t('休眠 {start}～{end}（UTC+8）',{start:String(start).padStart(2,'0')+':00',end:String(end).padStart(2,'0')+':00'});
-  el('management-login').href=prefix+'/management.html#/plugin-pages/timezone-override/0';
+  el('management-login').href=prefix+'/management.html#/plugin-pages/oai-adversarial-plugin/0';
   // Match CPA management center's secureStorage v1 format; never copy or persist its key.
   function storedValue(name){
     let value=localStorage.getItem(name);
@@ -639,6 +828,14 @@
     }catch{return '';}
   }
   function requireLogin(message='未找到已保存的 CPA 登录状态。请在管理页登录并启用“记住密码”，本页会自动连接。'){
+    lastConcurrency=null;concurrencyRevision++;concurrencyDrafts.clear();concurrencySaving.clear();
+    concurrencyRows.clear();concurrencyOrder='';
+    for(const id of ['concurrency-accounts','concurrency-active','concurrency-recent'])el(id).replaceChildren();
+    setMessage('concurrency-feedback',()=>'');
+    lastEval=null;evalDetail=null;evalRevision++;evalDetailRevision++;evalSelected.clear();
+    evalSampleOpen.clear();evalOpenID='';
+    for(const id of ['eval-accounts','eval-jobs','eval-results','eval-detail-body'])el(id).replaceChildren();
+    el('eval-detail').classList.add('hidden');el('eval-run').disabled=true;el('eval-confirm').checked=false;
     lastData=null;renderProbeHistories({});renderPool({});
     setMessage('auth-message',()=>t(message));el('auth-notice').classList.remove('hidden');el('results').classList.add('hidden');
     el('rows').replaceChildren();for(const key of ['total','replaced','inserted','mismatches','turnstates','overridden'])el(key).textContent='—';
@@ -647,6 +844,23 @@
     el('refresh').disabled=true;setMessage('refresh-note',()=>t('等待 CPA 登录'));setMessage('status',()=>'');
   }
   function cell(row, text, cls=''){const td=document.createElement('td');td.className=cls;td.textContent=text;row.append(td);return td;}
+  function performanceLatency(value){
+    if(typeof value!=='number'||!Number.isFinite(value)||value<0)return '—';
+    return value<1000?value.toFixed(value<1?2:0)+' ms':(value/1000).toFixed(2)+' s';
+  }
+  function renderPerformance(row,record){
+    const column=cell(row,'','performance-cell'),speed=document.createElement('div'),latency=document.createElement('div');
+    const tps=record.output_tps;
+    speed.textContent=record.request_outcome==='succeeded'&&record.response_tokens_complete===true&&typeof tps==='number'&&Number.isFinite(tps)&&tps>=0?tps.toFixed(1)+' t/s':'—';
+    speed.title=t('TPS = 完整输出 Token（含推理）÷ 总耗时；不是首输出后的解码速度，也不作为降智判据。');
+    latency.className='sub';latency.textContent=t('首输出 {first} · 总耗时 {total}',{first:performanceLatency(record.first_output_latency_ms),total:performanceLatency(record.request_latency_ms)});
+    latency.title=t(record.timing_source==='evaluation-callback'?'能力测试耗时由插件计时：从调用 CPA 执行到流读取/关闭完成，不含排队；首输出不是宿主 TTFT。':'首输出延迟由插件实际收到的文本、推理或工具参数增量计时；不是宿主 TTFT。总耗时来自 CPA 完成回调起止时间，包含路由和重试；缺失数据不补造。');
+    column.append(speed,latency);
+    const outcomes={succeeded:['correct','请求成功'],failed:['error','请求已失败'],rejected:['error','请求已拒绝'],canceled:['cancelled','请求已取消']};
+    if(outcomes[record.request_outcome]){const [status,label]=outcomes[record.request_outcome];column.append(evalBadge(status,t(label)));}
+    else if(record.concurrency_state)column.append(concurrencyBadge(record.concurrency_state));
+    if(record.concurrency_rerouted){const note=document.createElement('div');note.className='sub';note.textContent=t('请求已换号');column.append(note);}
+  }
   function proxyLabel(spec){
     if(!spec)return '—';
     if(spec==='direct')return t('直连');
@@ -656,7 +870,7 @@
     const key=readManagementKey();
     if(!key){requireLogin();return false;}
     try{
-      const response=await fetch(prefix+'/v0/management/timezone-override/probe-control',{method:'POST',headers:{'Authorization':'Bearer '+key,'Content-Type':'application/json'},body:JSON.stringify(payload)});
+      const response=await fetch(prefix+'/v0/management/oai-adversarial-plugin/probe-control',{method:'POST',headers:{'Authorization':'Bearer '+key,'Content-Type':'application/json'},body:JSON.stringify(payload)});
       if(response.status===401||response.status===403){rejectedKey=key;requireLogin('CPA 登录已失效，请返回管理页重新登录。');return false;}
       if(!response.ok){const data=await response.json().catch(()=>null);throw new Error((data&&data.error)||(t('操作失败（HTTP {status}）',{status:response.status})));}
       controlRevision++;
@@ -703,12 +917,16 @@
       el('override-label').textContent=t('覆写：关闭');el('override-dot').style.background='var(--muted)';
     }
     const fragment=document.createDocumentFragment();
+    const acceptedLengths=(override.probe&&override.probe.accepted_state_lengths)||[292,332];
     for(const record of data.records.slice(0,50)){
       const tr=document.createElement('tr');
+      const evaluation=record.request_kind==='evaluation';
       const time=cell(tr,clock.format(new Date(record.time)),'time');time.title=record.time;
       const model=cell(tr,record.model,'model');if(record.account){const account=document.createElement('div');account.className='sub';account.textContent=accountLabel(record);model.append(account);}model.title=record.model;
       const upstream=cell(tr,'');
-      if(record.detection_exempt){
+      if(evaluation){
+        if(record.upstream_model){const code=document.createElement('code');code.textContent=record.upstream_model;upstream.append(code);}else upstream.textContent='—';
+      }else if(record.detection_exempt){
         if(record.upstream_model){const code=document.createElement('code');code.textContent=record.upstream_model;upstream.append(code);}
         const badge=document.createElement('span');badge.className='badge state-off';badge.textContent=t('不检测');upstream.append(badge);
       }else if(record.model_checked&&record.upstream_model){
@@ -716,13 +934,18 @@
         if(record.model_mismatch){const badge=document.createElement('span');badge.className='badge mismatch';badge.textContent=t('模型不一致');upstream.append(badge);}
       }else{upstream.textContent='—';upstream.classList.add('none');}
       const original=record.original||[];
-      cell(tr,original.length?original.join('、'):t('无'),original.length?'':'none');
-      const target=cell(tr,'');const code=document.createElement('code');code.textContent=record.target;target.append(code);
+      cell(tr,evaluation&&!record.target?t('旧版评测：未记录时区'):original.length?original.join('、'):t('无'),original.length?'':'none');
+      const target=cell(tr,'');const code=document.createElement('code');code.textContent=record.target||'—';target.append(code);
       const action=cell(tr,'');
-      if(record.degraded_rejected){const badge=document.createElement('span');badge.className='badge probe-fail';badge.textContent=t('降智已拦截');badge.title=t('请求因模型疑似风控降智被插件拦截（HTTP 403）');action.append(badge);}
+      if(evaluation){
+        const badge=document.createElement('span');badge.className='badge state-off';badge.textContent=record.evaluation_kind==='candy'?t('糖果测试'):record.evaluation_kind==='modeltrace'?'ModelTrace':t('能力测试请求');action.append(badge);
+        if(record.target&&['inserted','replaced','unchanged'].includes(record.action)){const timezone=document.createElement('span');timezone.className='badge '+record.action;timezone.textContent=t(labels[record.action]);action.append(timezone);}
+        const sample=document.createElement('div');sample.className='sub';sample.textContent=t('样本 {n}',{n:record.evaluation_sample||'—'});action.append(sample);
+      }else if(record.degraded_rejected){const badge=document.createElement('span');badge.className='badge probe-fail';badge.textContent=t('降智已拦截');badge.title=t('请求因模型疑似风控降智被插件拦截（HTTP 403）');action.append(badge);}
       else{const badge=document.createElement('span');badge.className='badge '+record.action;badge.textContent=t(labels[record.action]||record.action);action.append(badge);}
       const turnstate=cell(tr,'','turnstate');
-      if(record.degraded_rejected){turnstate.textContent=t('未发往上游');turnstate.classList.add('none');}
+      if(evaluation){turnstate.textContent=t('能力测试：不注入票据，不参与健康判定');}
+      else if(record.degraded_rejected){turnstate.textContent=t('未发往上游');turnstate.classList.add('none');}
       else if(record.turn_state_override==='applied'||record.turn_state_override==='applied-config'){
         const original=record.turn_state_original_length;
         const originalText=original===0?t('未携带'):Number.isInteger(original)&&original>0?t('收到 {count} 字节',{count:original.toLocaleString(locale)}):t('原始长度未知');
@@ -752,10 +975,35 @@
         const response=document.createElement('div');response.className='sub';response.textContent=t('响应：{value}',{value});turnstate.append(response);
       }
       if(record.turn_state_override==='account-unavailable'||record.turn_state_override==='account-baseline-unavailable'){const notice=document.createElement('span');notice.className='badge state-warn';notice.textContent=t(record.turn_state_override==='account-unavailable'?'未注入：账号未识别':'未注入：此账号无有效票据');turnstate.append(notice);}
+      // Degraded-tier signal: a response ticket length outside the accepted
+      // policy is shown explicitly (source-correlated observation, not a
+      // verdict). Hidden when the configured policy accepts that length.
+      const respLen=record.turn_state_response_original_length;
+      if(Number.isInteger(respLen)&&respLen>0&&!acceptedLengths.includes(respLen)){
+        const tier=document.createElement('span');tier.className='badge state-warn';
+        tier.textContent=t('疑似降级档（{count} 字节）',{count:respLen.toLocaleString(locale)});
+        tier.title=t('响应侧票据长度不在配置的正常集合（{lengths}）内；历史数据显示它常与来源相关的降智同时出现，此处仅作诊断展示。',{lengths:acceptedLengths.join('/')});
+        turnstate.append(tier);
+      }
+      const tokIn=record.response_tokens_input,tokOut=record.response_tokens_output,tokReason=record.response_tokens_reasoning;
+      if([tokIn,tokOut,tokReason].some(value=>Number.isInteger(value))){
+        const tokens=document.createElement('div');tokens.className='sub';
+        tokens.textContent=t('Token 输入 {input} · 输出 {output} · 推理 {reasoning}',{
+          input:Number.isInteger(tokIn)?tokIn.toLocaleString(locale):'—',
+          output:Number.isInteger(tokOut)?tokOut.toLocaleString(locale):'—',
+          reasoning:Number.isInteger(tokReason)?tokReason.toLocaleString(locale):'—',
+        });
+        turnstate.append(tokens);
+      }
       if(record.trace_id) tr.title='Trace ID: '+record.trace_id;
+      if(evaluation){
+        tr.title=t('请求 ID：{id}',{id:record.request_id||'—'});
+        if(record.evaluation_error){const error=document.createElement('div');error.className='sub';error.textContent=evalError(record.evaluation_error)+' · '+record.evaluation_error;turnstate.append(error);}
+      }
+      renderPerformance(tr,record);
       fragment.append(tr);
     }
-    if(!data.records.length){const tr=document.createElement('tr');const td=cell(tr,t('尚无记录。发起一次请求后，这里会显示原时区、上游模型与 X-Codex-Turn-State。'),'empty');td.colSpan=7;fragment.append(tr);}
+    if(!data.records.length){const tr=document.createElement('tr');const td=cell(tr,t('尚无记录。发起一次请求后，这里会显示原时区、上游模型与 X-Codex-Turn-State。'),'empty');td.colSpan=8;fragment.append(tr);}
     el('rows').replaceChildren(fragment);el('auth-notice').classList.add('hidden');el('results').classList.remove('hidden');
     renderProbe(override.probe);
     renderPool(override.probe);
@@ -906,6 +1154,12 @@
     rejectBtn.disabled=false;
     if(probe.reject_degraded){rejectBtn.classList.add('on');rejectBtn.textContent=t('异常请求拦截：已开启');}
     else{rejectBtn.classList.remove('on');rejectBtn.textContent=t('异常请求拦截：已关闭');}
+    const injectBtn=el('turn-state-inject-toggle');
+    injectBtn.disabled=false;
+    const injecting=probe.turn_state_inject_enabled!==false;
+    if(injecting){injectBtn.classList.add('on');injectBtn.textContent=t('注入 X-Codex-Turn-State：已开启');}
+    else{injectBtn.classList.remove('on');injectBtn.textContent=t('注入 X-Codex-Turn-State：已关闭');}
+    injectBtn.setAttribute('aria-pressed',String(injecting));
     const emailToggle=el('account-email-toggle');
     emailToggle.classList.toggle('on',showAccountEmails);emailToggle.textContent=t(showAccountEmails?'邮箱显示：已开启':'邮箱显示：已关闭');emailToggle.setAttribute('aria-pressed',String(showAccountEmails));
     const grouped=values.some(entry=>entry.target&&entry.account)||probe.account_mode==='all-accounts';
@@ -1098,7 +1352,7 @@
       egress.title=proxyLabel(record.proxy);
       const result=cell(tr,'');
       const badge=document.createElement('span');badge.className='badge '+(record.success?'probe-ok':'probe-fail');
-      badge.textContent=record.success?t('获取成功'):t('失败');result.append(badge);
+      const label=document.createElement('span');label.textContent=record.success?t('获取成功'):t('失败');badge.append(statusIcon(record.success?'check':'cross'),label);result.append(badge);
       cell(tr,(record.duration_ms||0)+' ms');
       const detail=cell(tr,'');
       if(record.success){
@@ -1115,7 +1369,8 @@
     el(target).replaceChildren(hfrag);
   }
   function switchTab(name){
-    for(const key of ['records','router','pool']){
+    activeTab=name;
+    for(const key of ['records','concurrency','router','pool','eval']){
       const active=key===name;
       el('tab-'+key).classList.toggle('active',active);
       el('tab-'+key).setAttribute('aria-current',active?'page':'false');
@@ -1123,8 +1378,217 @@
     }
   }
   el('tab-records').addEventListener('click',()=>switchTab('records'));
+  el('tab-concurrency').addEventListener('click',()=>{switchTab('concurrency');refreshConcurrency();});
   el('tab-router').addEventListener('click',()=>switchTab('router'));
   el('tab-pool').addEventListener('click',()=>switchTab('pool'));
+  el('tab-eval').addEventListener('click',()=>{switchTab('eval');refreshEval();});
+
+  const evalStatusKeys={queued:'测试已排队',running:'测试执行中',waiting:'等待或休眠中',cancelling:'正在取消测试',cancelled:'测试已取消',completed:'测试完成',partial:'部分有效',failed:'请求失败',error:'请求失败',uncertain:'答案不确定',correct:'答案正确',incorrect:'答案错误'};
+  function evalStatus(status){return t(evalStatusKeys[status]||'答案不确定');}
+  function concurrencyBadge(status){
+    const states={reserved:['queued','待发出'],running:['running','执行中'],waiting:['waiting','等待名额'],capacity_rejected:['error','并发已满'],quota_rejected:['error','7d 阈值暂停'],succeeded:['correct','已完成'],failed:['error','请求已失败'],canceled:['cancelled','请求已取消'],rejected:['error','请求已拒绝']};const [tone,label]=states[status]||['uncertain','状态未知'];return evalBadge(tone,t(label));
+  }
+  function concurrencyError(code){return t(code==='invalid_weekly_threshold'?'请输入 0–100 的用量阈值':code==='invalid_concurrency_limit'?'请输入 0–10000 的整数并发上限':code==='concurrency_settings_unavailable'?'并发配置不可读，请检查存储；不会覆盖原文件':code==='concurrency_save_failed'?'并发设置保存失败，原设置保持':'凭据清单不可用，请刷新后重试');}
+  async function refreshConcurrency(){
+    if(concurrencyLoading||activeTab!=='concurrency')return;
+    concurrencyLoading=true;const revision=concurrencyRevision;
+    try{const data=await evalRequest('account-concurrency');if(data&&revision===concurrencyRevision)renderConcurrency(data);}catch(error){setMessage('concurrency-feedback',()=>concurrencyError(error.message));}finally{concurrencyLoading=false;}
+  }
+  function concurrencyName(key){
+    const account=(lastConcurrency?.accounts||[]).find(a=>a.account===key),index=enabledConcurrencyAccounts(lastConcurrency).findIndex(a=>a.account===key);
+    return !account?t('已移除凭据'):showAccountEmails?account.file_name:account.disabled?t('已停用凭据'):t('凭据 {n}',{n:index+1});
+  }
+  function enabledConcurrencyAccounts(data){return (data?.accounts||[]).filter(account=>!account.disabled);}
+  function renderConcurrency(data){
+    lastConcurrency=data;const accounts=enabledConcurrencyAccounts(data),order=JSON.stringify(accounts.map(a=>a.account)),focused=document.activeElement?.getAttribute('data-concurrency-account'),focusedWeekly=document.activeElement?.getAttribute('data-weekly-account');let restore=null;
+    for(const [index,account] of accounts.entries()){
+      let controls=concurrencyRows.get(account.account);
+      if(!controls){
+        const item=document.createElement('div'),row=document.createElement('div'),identity=document.createElement('div'),name=document.createElement('div'),email=document.createElement('div'),current=document.createElement('div'),status=document.createElement('div'),draft=document.createElement('div'),label=document.createElement('label'),input=document.createElement('input'),save=document.createElement('button');
+        const settings=document.createElement('div');
+        item.className='quota-item';row.className='quota-main';identity.className='exit-identity';name.className='exit-name';email.className='sub';current.className='quota-current';status.className='quota-state';draft.className='quota-setting';settings.className='quota-settings';
+        identity.append(name,email);draft.append(label,input);settings.append(draft);row.append(identity,current,status,settings);item.append(row);
+        input.type='number';input.min='0';input.max='10000';input.step='1';input.setAttribute('data-concurrency-account',account.account);input.addEventListener('input',()=>concurrencyDrafts.set(account.account,String(input.value)));
+        save.type='button';save.addEventListener('click',async()=>{
+          if(concurrencySaving.has(account.account)||!lastConcurrency)return;
+          const raw=String(input.value).trim(),limit=Number(raw);if(!/^\d+$/.test(raw)||!Number.isSafeInteger(limit)||limit>10000){setMessage('concurrency-feedback',()=>t('请输入 0–10000 的整数并发上限'));return;}
+          const weeklyRaw=String(weeklyInput.value).trim(),weekly_threshold=Number(weeklyRaw);if((weeklyRaw!==''&&!/^\d+(\.\d+)?$/.test(weeklyRaw))||!Number.isFinite(weekly_threshold)||weekly_threshold>100){setMessage('concurrency-feedback',()=>t('请输入 0–100 的用量阈值'));return;}
+          const operation=++concurrencyRevision;concurrencySaving.set(account.account,operation);input.disabled=weeklyInput.disabled=save.disabled=true;
+          try{const result=await evalRequest('account-concurrency',{account:account.account,limit,weekly_threshold});if(result&&lastConcurrency&&concurrencySaving.get(account.account)===operation){const saved=result.accounts?.find(a=>a.account===account.account);if(saved){concurrencyDrafts.delete(account.account);concurrencyDrafts.delete(weeklyKey);setMessage('concurrency-feedback',()=>t('账号设置已保存，在途请求继续完成'));renderConcurrency({...lastConcurrency,accounts:lastConcurrency.accounts.map(a=>a.account===account.account?{...a,limit:saved.limit,weekly_threshold:saved.weekly_threshold,weekly_quota:saved.weekly_quota??a.weekly_quota}:a)});}}}catch(error){if(concurrencySaving.get(account.account)===operation)setMessage('concurrency-feedback',()=>concurrencyError(error.message));}finally{if(concurrencySaving.get(account.account)===operation){concurrencySaving.delete(account.account);concurrencyRevision++;if(lastConcurrency)renderConcurrency(lastConcurrency);}}
+        });
+        const weeklyDraft=document.createElement('div'),weeklyLabel=document.createElement('label'),weeklyInput=document.createElement('input');
+        weeklyDraft.className='quota-setting';weeklyDraft.append(weeklyLabel,weeklyInput);settings.append(weeklyDraft,save);
+        weeklyInput.type='number';weeklyInput.min='0';weeklyInput.max='100';weeklyInput.step='0.1';weeklyInput.setAttribute('data-weekly-account',account.account);
+        const weeklyKey=account.account+':weekly';weeklyInput.addEventListener('input',()=>concurrencyDrafts.set(weeklyKey,String(weeklyInput.value)));
+        controls={item,name,email,current,status,label,input,save,weeklyLabel,weeklyInput};concurrencyRows.set(account.account,controls);
+      }
+      const {name,email,current,status,label,input,save,weeklyLabel,weeklyInput}=controls;
+      name.textContent=concurrencyName(account.account);email.textContent=accountLabel(account);current.textContent=account.in_flight+' / '+(account.limit>0?account.limit:t('不限'));
+      status.replaceChildren(evalBadge(account.limit>0&&account.in_flight>=account.limit?'error':account.in_flight>0?'running':'waiting',t(account.limit>0&&account.in_flight>=account.limit?'并发已满':account.in_flight>0?'执行中':'空闲')));
+      label.textContent=t('最大并发');input.id='concurrency-limit-'+index;label.htmlFor=input.id;input.setAttribute('aria-label',t('最大并发'));input.value=concurrencyDrafts.get(account.account)??String(account.limit);input.disabled=concurrencySaving.has(account.account)||!!data.storage_error;save.textContent=t('确认保存');save.disabled=input.disabled;if(account.account===focused)restore=input;
+      const quota=account.weekly_quota||{},weeklyKey=account.account+':weekly',blocked=quota.state==='paused'||quota.state==='unknown';
+      if(blocked)status.replaceChildren(evalBadge(quota.state==='paused'?'error':'waiting',t(quota.state==='paused'?'7d 阈值暂停':'等待额度确认')));
+      weeklyLabel.textContent=t('7d 用量阈值（%）');weeklyInput.id='weekly-limit-'+index;weeklyLabel.htmlFor=weeklyInput.id;weeklyInput.setAttribute('aria-label',t('7d 用量阈值（%）'));weeklyInput.value=concurrencyDrafts.get(weeklyKey)??String(account.weekly_threshold??0);weeklyInput.disabled=concurrencySaving.has(account.account)||!!data.storage_error;
+      if(account.account===focusedWeekly)restore=weeklyInput;
+      label.title=label.textContent;weeklyLabel.title=weeklyLabel.textContent;
+      status.title=[typeof quota.used_percent==='number'?t('7d 用量：{used}',{used:quota.used_percent+'%'}):'',quota.reset_at?t('重置：{time}',{time:fmtBeijing(quota.reset_at)}):'',quota.updated_at?t('更新：{time}',{time:fmtBeijing(quota.updated_at)}):'',quota.error?t('额度查询失败，将自动重试；未确认刷新'):quota.stale?t('额度快照待更新'):'',quota.storage_error?t('额度快照保存失败，将自动重试；当前运行状态保留'):''].filter(Boolean).join('\n');
+    }
+    if(order!==concurrencyOrder){
+      const fragment=document.createDocumentFragment();for(const account of accounts)fragment.append(concurrencyRows.get(account.account).item);el('concurrency-accounts').replaceChildren(fragment);concurrencyOrder=order;
+      const present=new Set(accounts.map(a=>a.account));for(const key of concurrencyRows.keys())if(!present.has(key)){concurrencyRows.delete(key);concurrencyDrafts.delete(key);concurrencyDrafts.delete(key+':weekly');}
+      if(restore)restore.focus({preventScroll:true});
+    }
+    if(!accounts.length)el('concurrency-accounts').textContent=t('没有已启用的原生 Codex 凭据');
+    if(data.storage_error)setMessage('concurrency-feedback',()=>concurrencyError(data.storage_error));
+    for(const [id,requests,empty] of [['concurrency-active',data.active||[],'尚无在途请求'],['concurrency-recent',data.recent||[],'尚无完成记录']]){
+      const rows=document.createDocumentFragment();for(const request of requests){const row=document.createElement('tr');cell(row,concurrencyName(request.account),'model');cell(row,request.request_id,'quota-request');cell(row,request.model,'model');cell(row,t(request.kind==='evaluation'?'手动能力测试':request.kind==='probe'?'健康探测':'业务请求'));const status=cell(row,'');status.append(concurrencyBadge(request.status));if(request.rerouted){const note=document.createElement('div');note.className='sub';note.textContent=t('请求已换号');status.append(note);}const duration=new Date(request.completed_at||Date.now()).getTime()-new Date(request.started_at).getTime();cell(row,performanceLatency(duration));rows.append(row);}el(id).replaceChildren(rows);if(!requests.length)evalEmpty(id,empty,6);
+    }
+  }
+  function statusIcon(kind){
+    const paths={check:['M8 12l3 3 5-6'],cross:['M9 9l6 6M15 9l-6 6'],alert:['M12 7v6M12 16h.01'],clock:['M12 7v5l3 2'],pause:['M9 8v8M15 8v8'],cancel:['M5 5l14 14'],activity:['M5 12h3l2-5 4 10 2-5h3']};
+    const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+    for(const [key,value] of Object.entries({class:'status-icon',viewBox:'0 0 24 24',fill:'none',stroke:'currentColor','stroke-width':'1.8','stroke-linecap':'round','stroke-linejoin':'round','aria-hidden':'true',focusable:'false'}))svg.setAttribute(key,value);
+    const circle=document.createElementNS('http://www.w3.org/2000/svg','circle');circle.setAttribute('cx','12');circle.setAttribute('cy','12');circle.setAttribute('r','9');svg.append(circle);
+    for(const d of paths[kind]||paths.alert){const path=document.createElementNS('http://www.w3.org/2000/svg','path');path.setAttribute('d',d);svg.append(path);}
+    return svg;
+  }
+  function evalBadge(status,label=evalStatus(status)){
+    const styles={correct:['ok','check'],incorrect:['danger','cross'],error:['warn','alert'],failed:['warn','alert'],partial:['warn','alert'],uncertain:['warn','alert'],running:['info','activity'],completed:['info','check'],queued:['neutral','clock'],waiting:['neutral','clock'],cancelling:['neutral','pause'],cancelled:['neutral','cancel']};
+    const [tone,icon]=styles[status]||styles.uncertain,badge=document.createElement('span'),text=document.createElement('span');badge.className='status-pill';badge.setAttribute('data-tone',tone);text.textContent=label;badge.append(statusIcon(icon),text);return badge;
+  }
+  function evalError(code){
+    if(code==='account_weekly_quota_exceeded')return t('7d 阈值暂停');
+    if(code==='account_weekly_quota_unavailable')return t('等待额度确认');
+    if(code==='timezone_normalization_failed')return t('时区处理失败，测试请求未发出');
+    if(code==='request_timeout')return t('测试请求已超时，未取得有效答案');
+    if(['invalid_response_event','invalid_response_item','invalid_completed_response'].includes(code))return t('响应流解析失败，未取得有效答案；不是模型答错');
+    if(String(code).includes('storage'))return t('评测记录不可写，请检查存储状态');
+    if(code==='engine_unavailable')return t('引擎正在停止或配置不可用，请稍后重试');
+    if(code==='invalid_eval_request')return t('测试请求无效，请检查账号、模型及额度确认');
+    if(String(code).startsWith('invalid_eval'))return t('测试参数无效，请检查次数和推理强度');
+    if(code==='model_paused')return t('当前服务仍限制已暂停模型，请更新插件后重试');
+    if(code==='account_inventory_unavailable')return t('账号列表读取失败，请刷新后重试');
+    if(code==='account_eval_busy')return t('所选账号已有测试任务，请等待或取消');
+    if(String(code).startsWith('account_'))return t('所选账号已停用或身份变化，请重新选择');
+    return t('测试请求失败，请检查 CPA 宿主及测试详情');
+  }
+  async function evalRequest(action,payload){
+    const key=readManagementKey();
+    if(!key||key===rejectedKey){requireLogin();return null;}
+    const headers={Authorization:'Bearer '+key};if(payload)headers['Content-Type']='application/json';
+    const response=await fetch(prefix+'/v0/management/oai-adversarial-plugin/'+action,{method:payload?'POST':'GET',headers,cache:'no-store',...(payload?{body:JSON.stringify(payload)}:{})});
+    if(readManagementKey()!==key){requireLogin();return null;}
+    if(response.status===401||response.status===403){rejectedKey=key;requireLogin('CPA 登录已失效，请返回管理页重新登录。');return null;}
+    const data=await response.json();
+    if(readManagementKey()!==key){requireLogin();return null;}
+    if(!response.ok)throw new Error(data.error||'eval_request_failed');
+    return data;
+  }
+  async function refreshEval(){
+    if(evalLoading||activeTab!=='eval')return;
+    evalLoading=true;const revision=evalRevision;
+    try{const data=await evalRequest('eval');if(data&&revision===evalRevision)renderEval(data);}catch(error){setMessage('eval-feedback',()=>evalError(error.message));}
+    finally{evalLoading=false;}
+  }
+  function renderEvalControls(){
+    const trace=el('eval-kind').value==='modeltrace';
+    el('eval-runs').disabled=trace||evalMutating;el('eval-effort').disabled=trace||evalMutating;
+    el('eval-model').disabled=evalMutating;el('eval-kind').disabled=evalMutating;
+    const raw=String(el('eval-runs').value||'1'),runs=trace?3:Number(raw),model=String(el('eval-model').value||'');
+    const valid=trace||(/^\d+$/.test(raw)&&Number.isSafeInteger(runs)&&runs>=1&&runs<=10);
+    const busy=(lastEval?.jobs||[]).some(job=>evalSelected.has(job.scope));
+    el('eval-budget').textContent=t('所选 {accounts} 个账号 · 共 {requests} 次请求 · 不自动重试',{accounts:evalSelected.size,requests:valid?evalSelected.size*runs:0});
+    el('eval-run').disabled=!lastEval?.can_run||!!lastEval?.storage_error||evalMutating||busy||!valid||!evalSelected.size||!el('eval-confirm').checked||!/^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$/.test(model);
+  }
+  function evalAccountLabel(scope){
+    const index=(lastEval?.accounts||[]).findIndex(account=>account.scope===scope),account=lastEval?.accounts?.[index];
+    return t('账号 {n}',{n:index>=0?index+1:'—'})+' · '+accountLabel(account||{});
+  }
+  function evalEmpty(id,message,columns){const tr=document.createElement('tr');const td=cell(tr,t(message),'empty');td.colSpan=columns;el(id).replaceChildren(tr);}
+  function renderEval(data){
+    lastEval=data;
+    const legend=document.createDocumentFragment(),legendLabel=document.createElement('span');legendLabel.className='eval-legend-label';legendLabel.textContent=t('状态说明');legend.append(legendLabel);
+    for(const state of ['correct','incorrect','error','waiting','cancelled'])legend.append(evalBadge(state));el('eval-legend').replaceChildren(legend);
+    const accounts=data.accounts||[],present=new Set(accounts.map(account=>account.scope));
+    for(const scope of evalSelected)if(!present.has(scope))evalSelected.delete(scope);
+    const fragment=document.createDocumentFragment();
+    const focusedScope=document.activeElement?.getAttribute('data-eval-scope');let restoreFocus=null;
+    for(const account of accounts){
+      const label=document.createElement('label'),input=document.createElement('input'),name=document.createElement('span');
+      input.type='checkbox';input.checked=evalSelected.has(account.scope);input.disabled=evalMutating;
+      input.setAttribute('data-eval-scope',account.scope);if(account.scope===focusedScope)restoreFocus=input;
+      input.addEventListener('change',()=>{if(input.checked)evalSelected.add(account.scope);else evalSelected.delete(account.scope);renderEvalControls();});
+      name.textContent=evalAccountLabel(account.scope);label.append(input,name);fragment.append(label);
+    }
+    el('eval-accounts').replaceChildren(fragment);
+    if(restoreFocus)restoreFocus.focus({preventScroll:true});
+    if(!accounts.length)el('eval-accounts').textContent=t('没有可测试的已启用 Codex 账号');
+    const emailToggle=el('account-email-toggle');emailToggle.classList.toggle('on',showAccountEmails);emailToggle.textContent=t(showAccountEmails?'邮箱显示：已开启':'邮箱显示：已关闭');emailToggle.setAttribute('aria-pressed',String(showAccountEmails));
+    const models=document.createDocumentFragment();for(const model of data.models||[]){const option=document.createElement('option');option.value=model;models.append(option);}el('eval-model-list').replaceChildren(models);
+    el('eval-sleep').textContent=data.sleep_until?t('等待或休眠中')+' · '+fmtBeijing(data.sleep_until):'';
+    el('eval-licenses').textContent=(data.licenses?.candy_eval||'')+'\n\n'+(data.licenses?.modeltrace||'');
+    if(data.storage_error)setMessage('eval-feedback',()=>evalError(data.storage_error));
+    const jobs=document.createDocumentFragment();
+    for(const job of data.jobs||[]){
+      const tr=document.createElement('tr');cell(tr,evalAccountLabel(job.scope),'model');cell(tr,job.model,'model');cell(tr,job.kind==='candy'?t('糖果测试'):'ModelTrace');const progress=cell(tr,'','eval-result'),count=document.createElement('div');count.className='eval-progress';count.textContent=job.done+' / '+job.total;progress.append(evalBadge(job.phase),count);
+      const action=cell(tr,''),button=document.createElement('button');button.type='button';button.textContent=t('取消');button.disabled=evalMutating||job.phase==='cancelling';
+      button.addEventListener('click',()=>mutateEval('eval-cancel',{id:job.id}));action.append(button);jobs.append(tr);
+    }
+    el('eval-jobs').replaceChildren(jobs);if(!(data.jobs||[]).length)evalEmpty('eval-jobs','尚无测试任务',5);
+    const results=document.createDocumentFragment();
+    for(const result of data.results||[]){
+      const tr=document.createElement('tr');cell(tr,fmtBeijing(result.time));cell(tr,evalAccountLabel(result.scope),'model');cell(tr,result.model,'model');cell(tr,result.kind==='candy'?t('糖果测试'):'ModelTrace');
+      const resultCell=cell(tr,'','eval-result');let state=result.status,label=evalStatus(state);
+      if(result.kind==='candy'&&state==='completed'){
+        state=result.graded>0?(result.correct===result.graded?'correct':'incorrect'):'uncertain';label+=' · '+(state==='incorrect'?t('含错误答案'):evalStatus(state));
+      }
+      resultCell.append(evalBadge(state,label));
+      if(result.kind==='candy'&&result.revision==='candy-shapes-v2-final-29'){const legacy=document.createElement('div');legacy.className='sub';legacy.textContent=t('旧版 29 基准');resultCell.append(legacy);}
+      if(result.kind==='candy'){
+        const score=document.createElement('div'),number=document.createElement('strong'),caption=document.createElement('span'),counts=document.createElement('div');score.className='eval-score';score.setAttribute('data-tone',state==='correct'?'ok':state==='incorrect'?'danger':'neutral');number.textContent=result.graded>0?(100*(result.correct||0)/result.graded).toFixed(0)+'%':'—';caption.textContent=t('已判分正确率');score.append(number,caption);counts.className='sub';counts.textContent=t('正确 {correct}/{graded} · 未判分 {other}',{correct:result.correct||0,graded:result.graded||0,other:Math.max(0,(result.done||0)-(result.graded||0))});resultCell.append(score,counts);
+      }
+      if(result.attribution){const attribution=document.createElement('div');attribution.className='sub';attribution.textContent=t('候选归因：{model} · {probability}% · 有效样本 {used}/3',{model:result.attribution.prediction,probability:(result.attribution.probability*100).toFixed(1),used:result.attribution.used_outputs});resultCell.append(attribution);}
+      const action=cell(tr,''),button=document.createElement('button');button.type='button';button.textContent=t('测试详情');
+      button.addEventListener('click',async()=>{const revision=++evalDetailRevision;try{const detail=await evalRequest('eval-detail',{id:result.id});if(detail&&lastEval&&revision===evalDetailRevision){evalDetail=detail;renderEvalDetail(detail);}}catch(error){setMessage('eval-feedback',()=>evalError(error.message));}});action.append(button);results.append(tr);
+    }
+    el('eval-results').replaceChildren(results);if(!(data.results||[]).length)evalEmpty('eval-results','尚无测试历史',6);
+    renderEvalControls();
+  }
+  function renderEvalDetail(detail){
+    if(evalOpenID!==detail.id){evalSampleOpen.clear();evalOpenID=detail.id;}
+    const fragment=document.createDocumentFragment(),meta=document.createElement('p');
+    meta.textContent=t('修订：{revision} · 路由：CPA · 不注入票据',{revision:detail.revision});fragment.append(meta);
+    if(detail.kind==='candy'&&detail.revision==='candy-shapes-v2-final-29'){const warning=document.createElement('p');warning.textContent=t('旧版糖果记录使用错误的 29 基准，仅保留历史，不与当前结果比较。');fragment.append(warning);}
+    if(detail.error){const error=document.createElement('p');error.textContent=evalError(detail.error)+' · '+detail.error;fragment.append(error);}
+    if(detail.attribution?.family_prediction_name){const family=document.createElement('p');family.textContent=t('家族归因：{family} · {probability}%',{family:detail.attribution.family_prediction_name,probability:(detail.attribution.family_probability*100).toFixed(1)});fragment.append(family);}
+    for(const candidate of detail.attribution?.results?.slice(0,5)||[]){const line=document.createElement('p');line.textContent=candidate.display_name+' · '+(candidate.probability*100).toFixed(1)+'%';fragment.append(line);}
+    for(const [index,sample] of (detail.samples||[]).entries()){
+      const item=document.createElement('details'),title=document.createElement('summary'),name=document.createElement('span');item.open=evalSampleOpen.has(index);item.addEventListener('toggle',()=>{if(item.open)evalSampleOpen.add(index);else evalSampleOpen.delete(index);});name.textContent=t('样本 {n}',{n:index+1});title.append(name,evalBadge(sample.error?'error':sample.status));item.append(title);
+      const usage=document.createElement('p');usage.textContent=t('Token 输入 {input} / 输出 {output} / 推理 {reasoning}',{input:sample.usage?.input_tokens??'—',output:sample.usage?.output_tokens??'—',reasoning:sample.usage?.reasoning_tokens??'—'});item.append(usage);
+      if(sample.observed_model){const model=document.createElement('p');model.textContent=t('上游模型')+' · '+sample.observed_model;item.append(model);}
+      if(sample.request_id){const request=document.createElement('p');request.textContent=t('请求 ID：{id}',{id:sample.request_id});item.append(request);}
+      if(sample.timezone){const timezone=document.createElement('p');timezone.textContent=t('请求目标时区：{zone}',{zone:sample.timezone});item.append(timezone);}
+      if(sample.error){const error=document.createElement('p');error.textContent=evalError(sample.error);item.append(error);}
+      for(const [name,value] of [['题目',sample.prompt],[sample.error?'错误':'回答',sample.text||sample.error||'—']]){const label=document.createElement('p'),text=document.createElement('pre');label.textContent=t(name);text.className='eval-answer';text.textContent=value;item.append(label,text);}
+      fragment.append(item);
+    }
+    el('eval-detail-body').replaceChildren(fragment);el('eval-detail').classList.remove('hidden');
+  }
+  async function mutateEval(action,payload){
+    if(evalMutating)return;
+    evalMutating=true;evalRevision++;renderEvalControls();
+    try{const result=await evalRequest(action,payload);if(result){el('eval-confirm').checked=false;setMessage('eval-feedback',()=>action==='eval-run'?t('已提交 {count} 个测试任务',{count:result.started}):t('正在取消测试'));}}
+    catch(error){setMessage('eval-feedback',()=>evalError(error.message));}
+    finally{evalMutating=false;evalRevision++;renderEvalControls();refreshEval();}
+  }
+  if(!el('eval-kind').value)el('eval-kind').value='candy';if(!el('eval-model').value)el('eval-model').value='gpt-6-astra';if(!el('eval-runs').value)el('eval-runs').value='1';if(!el('eval-effort').value)el('eval-effort').value='none';
+  for(const [id,event] of [['eval-kind','change'],['eval-model','input'],['eval-runs','input'],['eval-effort','change'],['eval-confirm','change']])el(id).addEventListener(event,renderEvalControls);
+  el('eval-detail-close').addEventListener('click',()=>{evalDetail=null;evalDetailRevision++;evalSampleOpen.clear();evalOpenID='';el('eval-detail').classList.add('hidden');el('eval-detail-body').replaceChildren();});
+  el('eval-run').addEventListener('click',async()=>{
+    renderEvalControls();if(el('eval-run').disabled)return;
+    const trace=el('eval-kind').value==='modeltrace';
+    await mutateEval('eval-run',{accounts:[...evalSelected],kind:trace?'modeltrace':'candy',model:el('eval-model').value,runs:trace?1:Number(el('eval-runs').value),effort:trace?'none':el('eval-effort').value,confirmed:true});
+  });
   async function refresh(){
     const managementKey=readManagementKey();
     if(!managementKey){requireLogin();return;}
@@ -1142,10 +1606,13 @@
     }catch(error){
       setMessage('status',()=>error.message);setMessage('refresh-note',()=>t('等待重试'));
     }finally{loading=false;const key=readManagementKey();el('refresh').disabled=!key||key===rejectedKey;}
+    if(activeTab==='eval')refreshEval();
+    if(activeTab==='concurrency')refreshConcurrency();
   }
   el('refresh').addEventListener('click',refresh);
-  el('account-email-toggle').addEventListener('click',()=>{showAccountEmails=!showAccountEmails;if(lastData)render(lastData);});
+  el('account-email-toggle').addEventListener('click',()=>{showAccountEmails=!showAccountEmails;if(lastData)render(lastData);if(lastEval)renderEval(lastEval);if(lastConcurrency)renderConcurrency(lastConcurrency);});
   el('reject-toggle').addEventListener('click',async()=>{const button=el('reject-toggle');button.disabled=true;const enable=!button.classList.contains('on');if(await probeControl({action:'reject-degraded',enabled:enable}))refresh();else button.disabled=false;});
+  el('turn-state-inject-toggle').addEventListener('click',async()=>{const button=el('turn-state-inject-toggle');button.disabled=true;const enable=!button.classList.contains('on');if(await probeControl({action:'turn-state-inject',enabled:enable}))refresh();else button.disabled=false;});
   el('round-start').addEventListener('click',async()=>{const button=el('round-start');button.disabled=true;if(await probeControl({action:'start-round'}))refresh();else button.disabled=false;});
   el('round-stop').addEventListener('click',async()=>{const button=el('round-stop');button.disabled=true;if(await probeControl({action:'stop-current'}))refresh();else button.disabled=false;});
   el('all-stop').addEventListener('click',async()=>{const button=el('all-stop');button.disabled=true;if(await probeControl({action:'stop-all'}))refresh();else button.disabled=false;});

@@ -28,6 +28,10 @@ type runtimeSettings struct {
 	IntervalSeconds *int             `json:"interval_seconds,omitempty"`
 	SleepHours      *probeSleepHours `json:"sleep_hours,omitempty"`
 	Exits           []managedExit    `json:"exits,omitempty"`
+	// Diagnostics turns on the bounded structural journal used for the
+	// upstream risk-policy investigation (header names, lengths and short
+	// digests only). Missing means off; legacy files stay quiet.
+	Diagnostics *bool `json:"diagnostics,omitempty"`
 }
 
 type managedExit struct {
@@ -259,19 +263,24 @@ func writeRuntimeSettings(settings runtimeSettings) error {
 func loadRuntimeSettings() {
 	raw, err := os.ReadFile(runtimeSettingsPath())
 	if os.IsNotExist(err) {
+		syncDiagnosticsFromSettings(runtimeSettings{})
 		return
 	}
 	var settings runtimeSettings
 	if err == nil {
 		err = json.Unmarshal(raw, &settings)
 	}
-	probeTrack.mu.Lock()
-	defer probeTrack.mu.Unlock()
 	if err != nil || settings.Version != 1 {
+		probeTrack.mu.Lock()
 		probeTrack.settingsError = "运行设置读取失败，请检查文件格式和权限"
+		probeTrack.mu.Unlock()
+		syncDiagnosticsFromSettings(runtimeSettings{})
 		return
 	}
+	probeTrack.mu.Lock()
 	probeTrack.settings = settings
+	probeTrack.mu.Unlock()
+	syncDiagnosticsFromSettings(settings)
 }
 
 // Caller holds mu. Disk failure leaves the old effective settings untouched.
@@ -319,6 +328,7 @@ func (e *probeEngine) saveSettingsLocked(settings runtimeSettings) error {
 		}
 	}
 	e.settings = settings
+	syncDiagnosticsFromSettings(settings)
 	if settings.Timezone != nil {
 		configuredTimezone.Store(*settings.Timezone)
 	}
@@ -345,6 +355,23 @@ func (e *probeEngine) setTargetTimezone(zone string) error {
 	settings := e.settings
 	settings.Timezone = &zone
 	return e.saveSettingsLocked(settings)
+}
+
+// setDiagnosticsJournal persists the opt-in structural journal switch. The
+// journal itself is written by diagnostics.go and contains only header
+// names, lengths and short digests - never values.
+func (e *probeEngine) setDiagnosticsJournal(enabled bool) error {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	settings := e.settings
+	settings.Diagnostics = &enabled
+	return e.saveSettingsLocked(settings)
+}
+
+func (e *probeEngine) diagnosticsJournalEnabled() bool {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	return e.settings.Diagnostics != nil && *e.settings.Diagnostics
 }
 
 func (e *probeEngine) setPrefetchMinutes(minutes int) error {

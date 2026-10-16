@@ -62,9 +62,7 @@ func TestPanelInvalidValuesRedacted(t *testing.T) {
 }
 
 func TestBusinessOnlyNoStaticValue(t *testing.T) {
-	old := probeTrack
-	probeTrack = &probeEngine{values: map[string]stateEntry{}, business: map[string]businessDegradation{}}
-	t.Cleanup(func() { probeTrack = old })
+	newPrefetchTestEngine(t)
 	err := configureTurnStateOverride([]byte("operation-mode: business-only\noverride-models: [gpt-6-astra]\n"))
 	if err != nil || currentTurnStateOverride().Error != "" {
 		t.Fatalf("business-only rejected: %v", err)

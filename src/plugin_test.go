@@ -70,6 +70,8 @@ func TestDashboardAndManagementRoutesAreSeparated(t *testing.T) {
 	}{
 		{"/v0/resource/plugins/timezone-override/status", "text/html; charset=utf-8", 200},
 		{"/v0/management/timezone-override/requests", "application/json; charset=utf-8", 200},
+		{"/v0/resource/plugins/oai-adversarial-plugin/status", "text/html; charset=utf-8", 200},
+		{"/v0/management/oai-adversarial-plugin/requests", "application/json; charset=utf-8", 200},
 		{"/not-registered", "", 404},
 	} {
 		raw, _ := json.Marshal(managementRequest{Method: "GET", Path: tc.path})
@@ -83,7 +85,13 @@ func TestDashboardAndManagementRoutesAreSeparated(t *testing.T) {
 		t.Fatal(err)
 	}
 	encoded, _ := json.Marshal(registration)
-	if !bytes.Contains(encoded, []byte(`/timezone-override/requests`)) || !bytes.Contains(encoded, []byte(`"Path":"/status"`)) {
-		t.Error("missing native CPA routes")
+	for _, path := range []string{
+		`/oai-adversarial-plugin/requests`, `/oai-adversarial-plugin/probe-control`,
+		`/timezone-override/requests`, `/timezone-override/probe-control`,
+		`"Path":"/status"`,
+	} {
+		if !bytes.Contains(encoded, []byte(path)) {
+			t.Errorf("missing native CPA route: %s", path)
+		}
 	}
 }

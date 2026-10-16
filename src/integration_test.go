@@ -101,7 +101,7 @@ plugins:
   enabled: true
   dir: %q
   configs:
-    timezone-override:
+    oai-adversarial-plugin:
       enabled: true
       priority: 100
       turn-state-override:
@@ -233,6 +233,38 @@ codex-api-key:
 				t.Fatalf("proxy response failed: %d %s", status, body)
 			}
 			assertCapture(t, "http", tc.original)
+			var input struct {
+				Stream bool `json:"stream"`
+			}
+			if err := json.Unmarshal([]byte(tc.body), &input); err != nil {
+				t.Fatal(err)
+			}
+			// Completion callbacks are asynchronous. Verify host timestamps
+			// and response tokens on the same execution after its body ends.
+			observed := false
+			for deadline := time.Now().Add(3 * time.Second); time.Now().Before(deadline); {
+				status, data := request(t, "GET", "/v0/management/"+pluginID+"/requests", "integration-management-key", nil)
+				var snapshot struct {
+					Records []auditRecord `json:"records"`
+				}
+				if status == 200 && json.Unmarshal(data, &snapshot) == nil && len(snapshot.Records) > 0 {
+					r := snapshot.Records[0]
+					if r.RequestOutcome == "succeeded" && r.RequestLatencyMS != nil && *r.RequestLatencyMS > 0 && r.OutputTPS != nil {
+						if input.Stream && r.FirstOutputLatencyMS == nil {
+							t.Fatal("stream first output missing")
+						}
+						if !input.Stream && r.FirstOutputLatencyMS != nil {
+							t.Fatal("nonstream first output fabricated")
+						}
+						observed = true
+						break
+					}
+				}
+				time.Sleep(10 * time.Millisecond)
+			}
+			if !observed {
+				t.Fatal("host completion/token performance unavailable")
+			}
 		})
 	}
 
@@ -356,15 +388,24 @@ codex-api-key:
 		}
 	})
 	t.Run("dashboard authentication", func(t *testing.T) {
-		status, data := request(t, "GET", "/v0/resource/plugins/timezone-override/status", "", nil)
+		status, data := request(t, "GET", "/v0/resource/plugins/oai-adversarial-plugin/status", "", nil)
 		if status != 200 || !bytes.Contains(data, []byte("原时区")) {
 			t.Fatalf("dashboard resource unavailable: %d", status)
 		}
-		status, _ = request(t, "GET", "/v0/management/timezone-override/requests", "", nil)
-		if status != 401 && status != 403 {
-			t.Errorf("audit records exposed without management authentication: %d", status)
+		for _, id := range []string{pluginID, legacyPluginID} {
+			status, _ = request(t, "GET", "/v0/management/"+id+"/requests", "", nil)
+			if status != 401 && status != 403 {
+				t.Errorf("audit records exposed without management authentication (%s): %d", id, status)
+			}
+			status, data = request(t, "GET", "/v0/management/"+id+"/requests", "integration-management-key", nil)
+			var identity struct {
+				Plugin string `json:"plugin"`
+			}
+			if status != 200 || json.Unmarshal(data, &identity) != nil || identity.Plugin != pluginID {
+				t.Fatalf("renamed API identity unavailable (%s): %d", id, status)
+			}
 		}
-		status, data = request(t, "GET", "/v0/management/timezone-override/requests", "integration-management-key", nil)
+		status, data = request(t, "GET", "/v0/management/oai-adversarial-plugin/requests", "integration-management-key", nil)
 		var snapshot struct {
 			Override map[string]any `json:"turn_state_override"`
 		}

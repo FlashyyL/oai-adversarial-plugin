@@ -74,44 +74,85 @@ func credentialScope(authID, token, workspace string) string {
 	return accountScope(string(raw))
 }
 
-func selectedAccount(metadata map[string]any, _ http.Header) string {
+func selectedAccount(metadata map[string]any, headers http.Header) string {
+	scope, _ := selectedAccountInfo(metadata, headers)
+	return scope
+}
+
+func selectedAccountInfo(metadata map[string]any, _ http.Header) (string, string) {
 	id, _ := metadata["selected_auth_id"].(string)
 	index, _ := metadata["selected_auth_index"].(string)
 	if id == "" || index == "" {
-		return ""
+		return "", ""
 	}
 	// CPA's after-auth hook is after selection but before the executor fills
 	// Authorization. Its headers can still belong to the client. Only the
 	// host-selected index and Host Auth callback identify the credential.
 	entries, err := hostAuthListFunc()
 	if err != nil {
-		return ""
+		return "", ""
 	}
 	matched := false
+	email := ""
 	for _, entry := range entries {
 		if entry.ID == id && entry.AuthIndex == index && !entry.Disabled {
 			matched = true
+			email = entry.Email
 			break
 		}
 	}
 	if !matched {
-		return ""
+		return "", ""
 	}
 	raw, err := hostAuthGetFunc(index)
 	if err != nil {
-		return ""
+		return "", ""
 	}
 	cred, err := decodeProbeCredential(raw)
 	if err != nil {
-		return ""
+		return "", ""
 	}
 	scope := credentialScope(id, cred.AccessToken, cred.AccountID)
 	probeTrack.mu.Lock()
 	defer probeTrack.mu.Unlock()
 	if !probeTrack.bindAccountLocked(id, scope) {
-		return ""
+		return "", ""
 	}
-	return scope
+	return scope, email
+}
+
+// Display metadata is separate from request ownership. Legacy snapshots kept
+// only the public short label; resolve it only when it identifies exactly one
+// current scope. Never reconstruct AccountScope/AuthBinding from that label.
+type auditEmailLookup struct{ scopes, labels map[string]string }
+
+func auditEmails(accounts map[string]hostAuthEntry) auditEmailLookup {
+	lookup := auditEmailLookup{scopes: map[string]string{}, labels: map[string]string{}}
+	seen := map[string]bool{}
+	for scope, entry := range accounts {
+		lookup.scopes[scope] = entry.Email
+		label := targetAccount(scope + "/audit")
+		if label == "" {
+			continue
+		}
+		if seen[label] {
+			lookup.labels[label] = ""
+		} else {
+			lookup.labels[label] = entry.Email
+			seen[label] = true
+		}
+	}
+	return lookup
+}
+
+func (lookup auditEmailLookup) email(record auditRecord) string {
+	if record.AccountEmail != "" || record.RequestKind == "evaluation" {
+		return record.AccountEmail
+	}
+	if record.AccountScope != "" {
+		return lookup.scopes[record.AccountScope]
+	}
+	return lookup.labels[record.Account]
 }
 
 // The host does not expose its selected in-memory credential snapshot. Pin an
@@ -166,6 +207,9 @@ func scopedRejectMessage(scope, model, requested string) string {
 }
 
 func applyScopedOverride(scope, model, requested string, headers http.Header) (http.Header, string) {
+	if !probeTrack.turnStateInjectEnabled() {
+		return nil, ""
+	}
 	if !degradationDetectionEnabled(model, requested) {
 		return nil, ""
 	}

@@ -55,14 +55,17 @@ func sleepUntilText(hours probeSleepHours, now time.Time) string {
 	return ""
 }
 
-// Hold the current task and its spent budget across sleep. Manual requests
-// share this gate; stop and pause remain effective while the worker waits.
-// An already issued network request finishes normally at the attempt boundary.
 func (e *probeEngine) waitForProbeWake(model string, stop, brake <-chan struct{}) bool {
+	return e.waitForTaskWake(probeTask{Model: model}, stop, brake)
+}
+
+// Share sleep and the global brake, but health participation pauses must not
+// cancel explicit ability tests. Their own stop channel remains effective.
+func (e *probeEngine) waitForTaskWake(task probeTask, stop, brake <-chan struct{}) bool {
 	for {
 		e.mu.Lock()
 		until := e.cfg.Config.SleepHours.until(time.Now())
-		cancelled := e.targetPausedLocked(model) || e.shuttingDown
+		cancelled := e.shuttingDown || (task.Evaluation == nil && e.targetPausedLocked(task.Model))
 		e.mu.Unlock()
 		if cancelled {
 			return false

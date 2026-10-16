@@ -37,6 +37,7 @@ type persistedState struct {
 	StateVersion      int                   `json:"state_version"`
 	SavedAt           string                `json:"saved_at,omitempty"`
 	RejectDegraded    *bool                 `json:"reject_degraded,omitempty"`
+	InjectDisabled    *bool                 `json:"inject_disabled,omitempty"`
 	Halted            *bool                 `json:"halted,omitempty"`
 	Paused            []string              `json:"paused,omitempty"`
 	Values            []stateEntry          `json:"values,omitempty"`
@@ -72,6 +73,8 @@ var (
 // for tests; production uses the plugin's own subdirectory, which the host
 // plugin scanner never treats as a plugin (.so is the only accepted suffix,
 // and the scanner only looks at the two fixed candidate directories).
+// Retain the legacy directory after the plugin ID rename. Runtime settings,
+// diagnostics and seeds share it; no user state is moved or reset on startup.
 func stateFilePath() string {
 	if value := strings.TrimSpace(os.Getenv("LKS_TZ_STATE_FILE")); value != "" {
 		return value
@@ -144,6 +147,8 @@ func collectState() persistedState {
 	probeTrack.mu.Lock()
 	enabled := probeTrack.rejectDegraded
 	state.RejectDegraded = &enabled
+	injectDisabled := probeTrack.injectDisabled
+	state.InjectDisabled = &injectDisabled
 	halted := probeTrack.halted
 	state.Halted = &halted
 	for model := range probeTrack.paused {
@@ -184,11 +189,18 @@ func collectState() persistedState {
 	state.ProbeHistory = historyCopy
 	state.ProbeSuccessHistory = make([]probeRecord, len(probeTrack.successHistory))
 	copy(state.ProbeSuccessHistory, probeTrack.successHistory)
+	emails := auditEmails(probeTrack.accounts)
 	probeTrack.mu.Unlock()
 
 	history.mu.Lock()
 	recordsCopy := make([]auditRecord, len(history.records))
 	copy(recordsCopy, history.records)
+	for i := range recordsCopy {
+		recordsCopy[i].AccountEmail = emails.email(recordsCopy[i])
+		if history.records[i].AccountEmail == "" && recordsCopy[i].AccountEmail != "" {
+			history.records[i].AccountEmail = recordsCopy[i].AccountEmail
+		}
+	}
 	state.Records = recordsCopy
 	state.Total = history.total
 	state.Inserted = history.inserted
@@ -273,6 +285,9 @@ func applyPersistedState(state persistedState) {
 	probeTrack.mu.Lock()
 	if state.RejectDegraded != nil {
 		probeTrack.rejectDegraded = *state.RejectDegraded
+	}
+	if state.InjectDisabled != nil {
+		probeTrack.injectDisabled = *state.InjectDisabled
 	}
 	if state.Halted != nil {
 		probeTrack.halted = *state.Halted

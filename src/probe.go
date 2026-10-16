@@ -228,6 +228,7 @@ type probeEngine struct {
 	candidates        map[string]stateEntry
 	prefetchGate      map[string]time.Time
 	prefetchStop      chan struct{}
+	prefetchDone      *sync.WaitGroup
 	lastAttempt       map[string]time.Time
 	paused            map[string]bool
 	probing           map[string]bool
@@ -237,12 +238,15 @@ type probeEngine struct {
 	shuttingDown      bool
 	queue             []probeTask
 	queueActive       bool
+	queueWG           sync.WaitGroup
+	evaluations       *evalState
 	disabledExits     map[string]bool
 	autoAuthSeen      bool
 	lastAutoAuth      string
 	lastAutoScope     string
 	accountBindings   map[string]string
 	rejectDegraded    bool
+	injectDisabled    bool
 	history           []probeRecord
 	successHistory    []probeRecord
 	exitSuccessCounts map[string]uint64
@@ -505,9 +509,10 @@ func currentProbeConfig() probeConfigState {
 // one-off operator refresh (bypasses the settled-baseline gate and survives
 // a halted engine).
 type probeTask struct {
-	Model    string
-	Force    bool
-	Progress *probeProgress
+	Model      string
+	Force      bool
+	Progress   *probeProgress
+	Evaluation *evalJob
 }
 
 // A yielded task keeps its round budget; resuming never starts a fresh round.
@@ -538,7 +543,7 @@ func (e *probeEngine) start() bool {
 	// resumes replenishing expiring baselines.
 	e.halted = false
 	markStateDirty()
-	if e.queueActive {
+	if e.queueActive && (len(e.probing) > 0 || len(queueModels(e.queue)) > 0) {
 		return true
 	}
 	e.runNote = ""
@@ -594,11 +599,15 @@ func (e *probeEngine) shutdown() {
 	e.cancelCurrentLocked()
 	e.mu.Unlock()
 	e.stopPrefetchWatcher()
+	// Evaluation streams use host callbacks. Drain the shared worker before
+	// the host can release those callbacks or unload the plugin ABI.
+	e.queueWG.Wait()
 }
 
 // Caller holds e.mu. Keep the worker visible until its in-flight request
 // actually returns, and reject new tasks during that drain interval.
 func (e *probeEngine) cancelCurrentLocked() {
+	e.cancelEvaluationsLocked()
 	if e.abortCh != nil {
 		close(e.abortCh)
 	}
@@ -650,7 +659,7 @@ func (e *probeEngine) enqueueTaskLocked(model string, force bool) bool {
 		e.queue = []probeTask{}
 	}
 	for _, task := range e.queue {
-		if task.Model == model {
+		if task.Evaluation == nil && task.Model == model {
 			return false
 		}
 	}
@@ -661,13 +670,14 @@ func (e *probeEngine) enqueueTaskLocked(model string, force bool) bool {
 	active := e.queueActive
 	if !active {
 		e.queueActive = true
+		e.queueWG.Add(1)
 		e.running = true
 		e.runStartedAt = time.Now().UTC().Format(time.RFC3339Nano)
 		e.runFinishedAt = ""
 	}
 	markStateDirty()
 	if !active {
-		go e.queueLoop()
+		go func() { defer e.queueWG.Done(); e.queueLoop() }()
 	}
 	return true
 }
@@ -702,7 +712,7 @@ func (e *probeEngine) yieldProbeTaskLocked(task probeTask, progress probeProgres
 	}
 	for _, queued := range e.queue {
 		if modelPriority(e.cfg.Config, queued.Model) < modelPriority(e.cfg.Config, task.Model) &&
-			!e.targetPausedLocked(queued.Model) && (queued.Force || !e.halted) {
+			(queued.Evaluation != nil || (!e.targetPausedLocked(queued.Model) && (queued.Force || !e.halted))) {
 			task.Progress = &progress
 			e.insertTaskLocked(task, true)
 			return true
@@ -747,13 +757,24 @@ func (e *probeEngine) queueLoop() {
 		}
 		paused := e.targetPausedLocked(task.Model)
 		halted := e.halted
+		if task.Evaluation != nil && !task.Evaluation.Finished {
+			task.Evaluation.Executing = true
+			task.Evaluation.Phase = "waiting"
+		}
 		e.mu.Unlock()
 		// Re-evaluate at dequeue time: a task may have become obsolete while
 		// waiting (model paused, baseline replenished, engine halted). A
 		// one-off refresh (Force) survives both gates - it is an explicit
 		// command - but still respects an operator pause.
 		intervalWaited := false
-		if cfg.Enabled && !paused && (task.Force || !halted) &&
+		if task.Evaluation != nil {
+			e.mu.Lock()
+			finished := task.Evaluation.Finished
+			e.mu.Unlock()
+			if !finished {
+				e.runEvalStep(task, brake)
+			}
+		} else if cfg.Enabled && !paused && (task.Force || !halted) &&
 			(task.Force || !e.settledBaseline(task.Model, cfg, time.Now().UTC())) {
 			// Capture cancellation before dequeue: a stop between dequeue and
 			// probeModel must not be lost by reading a fresh brake channel.
@@ -810,7 +831,7 @@ func (e *probeEngine) probeSuppressed(model string) bool {
 		return true
 	}
 	for _, task := range e.queue {
-		if task.Model == model {
+		if task.Evaluation == nil && task.Model == model {
 			return true
 		}
 	}
@@ -871,7 +892,7 @@ func (e *probeEngine) setModelPaused(model string, paused bool) bool {
 		e.paused[model] = true
 		pending := e.queue[:0]
 		for _, task := range e.queue {
-			if task.Model != model && (targetModel(model) != model || targetModel(task.Model) != model) {
+			if task.Evaluation != nil || (task.Model != model && (targetModel(model) != model || targetModel(task.Model) != model)) {
 				pending = append(pending, task)
 			}
 		}
@@ -921,20 +942,30 @@ func (e *probeEngine) ensurePrefetchWatcher() {
 		return
 	}
 	stop := make(chan struct{})
+	done := &sync.WaitGroup{}
+	done.Add(2)
 	e.prefetchStop = stop
+	e.prefetchDone = done
 	e.mu.Unlock()
-	go e.prefetchWatchLoop(stop)
-	go e.authSelectionWatchLoop(stop)
+	go func() { defer done.Done(); e.prefetchWatchLoop(stop) }()
+	go func() { defer done.Done(); e.authSelectionWatchLoop(stop) }()
 }
 
-// stopPrefetchWatcher shuts the watcher down (plugin shutdown).
+// stopPrefetchWatcher shuts the watcher down (plugin shutdown). It waits for
+// both watch goroutines to exit so callers can safely restore process-wide
+// state (tests) after this returns.
 func (e *probeEngine) stopPrefetchWatcher() {
 	e.mu.Lock()
 	stop := e.prefetchStop
+	done := e.prefetchDone
 	e.prefetchStop = nil
+	e.prefetchDone = nil
 	e.mu.Unlock()
 	if stop != nil {
 		close(stop)
+	}
+	if done != nil {
+		done.Wait()
 	}
 }
 
@@ -1146,6 +1177,27 @@ func (e *probeEngine) rejectDegradedEnabled() bool {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	return e.rejectDegraded
+}
+
+// setTurnStateInjectEnabled toggles the request-side baseline injection and
+// the response-side degraded-state repair (the dashboard "注入
+// X-Codex-Turn-State" switch). Disabled means the plugin performs no ticket
+// rewrite and no state backfill at all, so client tickets and upstream state
+// values pass through untouched. The disabled flag is stored inverted so a
+// fresh engine and old snapshots keep the historic always-on behavior.
+func (e *probeEngine) setTurnStateInjectEnabled(enabled bool) {
+	e.mu.Lock()
+	e.injectDisabled = !enabled
+	e.mu.Unlock()
+	markStateDirty()
+}
+
+// turnStateInjectEnabled reports whether the plugin still injects healthy
+// baseline tickets and repairs degraded upstream states.
+func (e *probeEngine) turnStateInjectEnabled() bool {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	return !e.injectDisabled
 }
 
 // degradationEvidence maps a probe failure message to its Chinese degradation
@@ -1718,6 +1770,7 @@ func (e *probeEngine) runProbeTask(task probeTask, cfg probeConfig, stop <-chan 
 			e.mu.Unlock()
 			return
 		}
+		previousCursor := cursor
 		cursor = next
 		// Reserve this attempt before an edit can publish a new configuration.
 		budgets[proxySpec]--
@@ -1726,6 +1779,25 @@ func (e *probeEngine) runProbeTask(task probeTask, cfg probeConfig, stop <-chan 
 		e.mu.Unlock()
 		intervalWaited = false
 		record, value := e.probeOnce(model, proxySpec, cfg)
+		if weeklyQuotaError(record.Error) {
+			// Quota admission is not a failed probe. Yield this account so other
+			// targets can proceed; automatic scans can retry after quota recovery.
+			budgets[proxySpec]++
+			spent[exitID(cfg, proxySpec)]--
+			attempts--
+			return
+		}
+		if record.Error == "account_concurrency_exceeded" || record.Error == "concurrency_settings_unavailable" || record.Error == "concurrency_request_untracked" {
+			// Capacity is local admission, not a failed upstream attempt or exit.
+			budgets[proxySpec]++
+			spent[exitID(cfg, proxySpec)]--
+			attempts--
+			cursor = previousCursor
+			if !e.waitProbeInterval(200*time.Millisecond, stop, brake) {
+				return
+			}
+			continue
+		}
 		e.appendRecord(record)
 		if record.Account != "" && strings.HasPrefix(record.Error, "read cred:") {
 			return
@@ -1800,7 +1872,23 @@ func (e *probeEngine) probeOnce(model, proxySpec string, cfg probeConfig) (probe
 	var binder *socksBind
 	stage := "credential"
 	defer func() {
+		if weeklyQuotaError(record.Error) { return }
+		if record.Error == "account_concurrency_exceeded" || record.Error == "concurrency_settings_unavailable" || record.Error == "concurrency_request_untracked" {
+			return
+		}
 		fmt.Fprint(os.Stderr, probeEgressLog(record, exitID(cfg, proxySpec), proxySpec, binder, stage))
+		diagnosticsEvent("probe", map[string]any{
+			"id":       digestShort(target),
+			"model":    model,
+			"exit":     publicProxyURL(proxySpec),
+			"label":    cfg.ProxyLabels[proxySpec],
+			"success":  record.Success,
+			"status":   record.StatusCode,
+			"state":    record.StateLength,
+			"obs":      record.ObservedModel,
+			"duration": record.DurationMS,
+			"error":    diagnosticsErrorKind(record.Error),
+		})
 	}()
 	cred, err := e.credentialForTarget(target, cfg)
 	if err != nil {
@@ -1810,6 +1898,23 @@ func (e *probeEngine) probeOnce(model, proxySpec string, cfg probeConfig) (probe
 		return record, ""
 	}
 	stage = "transport"
+	requestID, tokenErr := reservationToken()
+	if tokenErr != nil {
+		record.Error = "concurrency_request_untracked"
+		return record, ""
+	}
+	requestID = "probe-" + requestID
+	if err := accountConcurrency.internal(context.Background(), requestID, cred.AuthID, model, "probe", false); err != nil {
+		record.Error = err.Error()
+		return record, ""
+	}
+	defer func() {
+		outcome := "failed"
+		if record.Success {
+			outcome = "succeeded"
+		}
+		accountConcurrency.finish(requestCompletion{RequestID: requestID, Outcome: outcome})
+	}()
 	record.AuthLabel = cred.Label
 	record.AuthPriority = cred.Priority
 	defer func() {
@@ -1834,6 +1939,13 @@ func (e *probeEngine) probeOnce(model, proxySpec string, cfg probeConfig) (probe
 		"store":  false,
 	}
 	encoded, _ := json.Marshal(payload)
+	encoded, _, err = normalizeRequest(encoded, "openai-response")
+	if err != nil {
+		record.DurationMS = time.Since(started).Milliseconds()
+		record.Error = "timezone normalization failed"
+		e.noteError(record.Error)
+		return record, ""
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), cfg.Timeout)
 	defer cancel()
@@ -1871,6 +1983,9 @@ func (e *probeEngine) probeOnce(model, proxySpec string, cfg probeConfig) (probe
 	defer resp.Body.Close()
 	stage = "response"
 	record.StatusCode = resp.StatusCode
+	if cred.AuthID != "" {
+		if q, ok := weeklyQuotaFromHeaders(resp.Header, started, time.Now()); ok { q.Scope = credentialScope(cred.AuthID, cred.AccessToken, cred.AccountID); accountConcurrency.observeWeekly(accountScope(cred.AuthID), q) }
+	}
 	if resp.StatusCode != http.StatusOK {
 		// Read a bounded snippet for diagnostics.
 		snippet, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
@@ -2207,7 +2322,9 @@ func appendBoundedProbeRecord(records []probeRecord, record probeRecord, limit i
 func queueModels(tasks []probeTask) []string {
 	models := make([]string, 0, len(tasks))
 	for _, task := range tasks {
-		models = append(models, task.Model)
+		if task.Evaluation == nil {
+			models = append(models, task.Model)
+		}
 	}
 	return models
 }
@@ -2226,7 +2343,7 @@ func activeModels(probing map[string]bool, tasks []probeTask) []string {
 		}
 	}
 	for _, task := range tasks {
-		if !seen[task.Model] {
+		if task.Evaluation == nil && !seen[task.Model] {
 			seen[task.Model] = true
 			models = append(models, task.Model)
 		}
@@ -2603,6 +2720,8 @@ func probeSummary() map[string]any {
 		"suspects":                      suspects,
 		"paused":                        paused,
 		"reject_degraded":               probeTrack.rejectDegraded,
+		"turn_state_inject_enabled":     !probeTrack.injectDisabled,
+		"diagnostics_journal":           probeTrack.settings.Diagnostics != nil && *probeTrack.settings.Diagnostics,
 		"running":                       probeTrack.running,
 		"halted":                        probeTrack.halted,
 		"stopping":                      probeTrack.stopping,
